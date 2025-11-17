@@ -174,7 +174,7 @@ const ChooseTutor: React.FC = () => {
     return (
         <>
             <Sidebar />
-            <div className='ml-[80px] min-h-screen bg-blue-50 p-6 md:ml-[260px]'>
+            <div className='ml-[80px] min-h-screen bg-blue-50 p-3 sm:p-4 md:ml-[260px] md:p-6'>
                 <div className='mx-auto max-w-7xl'>
                     {/* Header */}
                     <div className='mb-6 flex items-start justify-between'>
@@ -187,12 +187,12 @@ const ChooseTutor: React.FC = () => {
                             </p>
                         </div>
                         <button
-                            className={`bg-blue-500 px-6 py-3 ${showAIRecommendation ? 'bg-gradient-to-r from-blue-700 to-[#00C0EF] text-white' : 'bg-blue-300 text-black'} flex items-center gap-2 rounded-lg font-semibold transition-colors hover:border-[2px] hover:border-blue-700 hover:text-blue-700`}
+                            className={`min-w-[120px] bg-blue-500 px-2 py-1 text-sm md:px-3 md:py-2 lg:px-6 lg:py-3 lg:text-base ${showAIRecommendation ? 'bg-gradient-to-r from-blue-700 to-[#00C0EF] text-white' : 'bg-blue-300 text-black'} flex items-center gap-1 rounded-lg font-semibold transition-colors hover:border-[2px] hover:border-blue-700 hover:text-blue-700`}
                             onClick={() =>
                                 setShowAIRecommendation(!showAIRecommendation)
                             }
                         >
-                            <Star size={20} />
+                            <Star size={16} />
                             {showAIRecommendation
                                 ? 'Gợi ý AI đã bật'
                                 : 'Bật gợi ý AI'}

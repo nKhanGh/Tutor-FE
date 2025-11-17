@@ -157,7 +157,7 @@ const RegisterProgram: React.FC = () => {
         return (
             <>
                 <Sidebar />
-                <div className='ml-[80px] min-h-screen bg-blue-50 p-6 md:ml-[260px]'>
+                <div className='ml-[80px] min-h-screen bg-blue-50 p-3 sm:p-4 md:ml-[260px] md:p-6'>
                     <div className='mx-auto max-w-6xl'>
                         {/* Header */}
                         <div className='mb-8'>
@@ -403,7 +403,7 @@ const RegisterProgram: React.FC = () => {
     return (
         <>
             <Sidebar />
-            <div className='ml-[80px] min-h-screen bg-blue-50 p-6 md:ml-[260px]'>
+            <div className='ml-[80px] min-h-screen bg-blue-50 p-3 pt-4 sm:p-4 md:ml-[260px] md:p-6'>
                 <div className='mx-auto w-full'>
                     {/* Header */}
                     <div className='mb-8'>

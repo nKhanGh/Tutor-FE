@@ -49,7 +49,7 @@ const Overview = () => {
     return (
         <>
             <Sidebar />
-            <div className='ml-[80px] bg-blue-50 p-6 md:ml-[260px]'>
+            <div className='ml-[80px] min-h-screen bg-blue-50 p-3 sm:p-4 md:ml-[260px] md:p-6'>
                 <div className='flex-1'>
                     <div className='mb-8'>
                         <h1 className='mb-2 text-3xl font-bold text-gray-800'>
