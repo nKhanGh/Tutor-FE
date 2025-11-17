@@ -11,6 +11,7 @@ import {
     Star,
     Share2,
 } from 'lucide-react';
+import { useNotification } from '@/hooks/useNotification';
 
 // 1. MOCK DATA: Dữ liệu giả lập phong phú hơn
 const MOCK_DOCS = [
@@ -103,6 +104,7 @@ const CATEGORIES = [
 ];
 
 const AllDocument = () => {
+    const { showSuccessNotification } = useNotification();
     // 2. STATE: Quản lý trạng thái lọc và tìm kiếm
     const [activeCategory, setActiveCategory] = useState('Tất cả');
     const [searchTerm, setSearchTerm] = useState('');
@@ -124,7 +126,7 @@ const AllDocument = () => {
 
     // Hàm xử lý mô phỏng hành động
     const handleAction = (actionName: string, docTitle: string) => {
-        alert(`Bạn đã nhấn ${actionName} cho tài liệu: \n"${docTitle}"`);
+        showSuccessNotification(`${actionName} tài liệu: "${docTitle}"`);
     };
 
     return (
