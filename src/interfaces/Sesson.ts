@@ -3,10 +3,11 @@ export interface Session {
     date: string;
     time: string;
     title: string;
-    tutor: string;
+    tutor?: string;
+    student?: string;
     status: 'completed' | 'cancelled-tutor' | 'cancelled-student' | 'pending';
-    canFeedback: boolean;
-    canViewReason: boolean;
+    canFeedback?: boolean;
+    canViewReason?: boolean;
     review?: {
         rating: number;
         comment: string;
