@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Edit } from 'lucide-react';
 import Sidebar from '@/components/layouts/Sidebar';
+import { useNotification } from '@/hooks/useNotification';
 
 interface FormData {
     subjects: string[];
@@ -46,6 +47,8 @@ const RegisterProgram: React.FC = () => {
         availability: '',
         additionalInfo: '',
     });
+    const { showSuccessNotification, showErrorNotification } =
+        useNotification();
 
     const [errors, setErrors] = useState<FormErrors>({
         subjects: '',
@@ -76,7 +79,6 @@ const RegisterProgram: React.FC = () => {
                 ? prev.subjects.filter((s) => s !== subject)
                 : [...prev.subjects, subject],
         }));
-        // Clear error when user selects a subject
         if (errors.subjects) {
             setErrors((prev) => ({ ...prev, subjects: '' }));
         }
@@ -84,7 +86,6 @@ const RegisterProgram: React.FC = () => {
 
     const handleInputChange = (field: keyof FormData, value: string): void => {
         setFormData((prev) => ({ ...prev, [field]: value }));
-        // Clear error when user types
         if (field in errors) {
             setErrors((prev) => ({ ...prev, [field as keyof FormErrors]: '' }));
         }
@@ -101,18 +102,23 @@ const RegisterProgram: React.FC = () => {
         if (formData.subjects.length === 0) {
             newErrors.subjects =
                 'Vui lòng chọn ít nhất một lĩnh vực cần hỗ trợ';
+            showErrorNotification?.(
+                'Vui lòng chọn ít nhất một lĩnh vực cần hỗ trợ',
+            );
         }
-
         if (!formData.specificSubjects.trim()) {
             newErrors.specificSubjects = 'Vui lòng nhập các môn học cụ thể';
+            showErrorNotification?.('Vui lòng nhập các môn học cụ thể');
         }
 
         if (!formData.challenges.trim()) {
             newErrors.challenges = 'Vui lòng mô tả khó khăn hiện tại của bạn';
+            showErrorNotification?.('Vui lòng mô tả khó khăn hiện tại của bạn');
         }
 
         if (!formData.goals.trim()) {
             newErrors.goals = 'Vui lòng nhập mục tiêu muốn đạt được';
+            showErrorNotification?.('Vui lòng nhập mục tiêu muốn đạt được');
         }
 
         setErrors(newErrors);
@@ -123,6 +129,7 @@ const RegisterProgram: React.FC = () => {
         if (validateForm()) {
             setIsRegistered(true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            showSuccessNotification?.('Đăng ký thành công!');
         }
     };
 
@@ -131,7 +138,7 @@ const RegisterProgram: React.FC = () => {
     };
 
     const handleCancel = (): void => {
-        if (window.confirm('Bạn có chắc chắn muốn hủy đăng ký?')) {
+        if (globalThis.confirm('Bạn có chắc chắn muốn hủy đăng ký?')) {
             setIsRegistered(false);
             setFormData({
                 subjects: [],
@@ -150,7 +157,7 @@ const RegisterProgram: React.FC = () => {
         return (
             <>
                 <Sidebar />
-                <div className='min-h-screen bg-blue-50 p-6'>
+                <div className='ml-[80px] min-h-screen bg-blue-50 p-6 md:ml-[260px]'>
                     <div className='mx-auto max-w-6xl'>
                         {/* Header */}
                         <div className='mb-8'>
@@ -163,7 +170,7 @@ const RegisterProgram: React.FC = () => {
                         </div>
 
                         {/* Info Cards */}
-                        <div className='mb-8 grid grid-cols-3 gap-6'>
+                        <div className='mb-8 grid gap-6 lg:grid-cols-3'>
                             <div className='rounded-2xl border-l-4 border-blue-400 bg-white p-6 shadow-sm'>
                                 <div className='mb-1 text-sm text-gray-600'>
                                     Mã Đăng kí
@@ -199,7 +206,7 @@ const RegisterProgram: React.FC = () => {
                                 </h2>
                             </div>
                             <div className='p-6'>
-                                <div className='mb-6 grid grid-cols-3 gap-6'>
+                                <div className='mb-6 grid grid-cols-2 gap-6 lg:grid-cols-3'>
                                     <div>
                                         <div className='mb-1 text-sm font-semibold text-gray-700'>
                                             Mã số sinh viên
@@ -224,9 +231,17 @@ const RegisterProgram: React.FC = () => {
                                             Khang
                                         </div>
                                     </div>
+                                    <div className='lg:hidden'>
+                                        <div className='mb-1 text-sm font-semibold text-gray-700'>
+                                            Ngày sinh
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            14/10/2005
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className='mb-6 grid grid-cols-3 gap-6'>
-                                    <div>
+                                <div className='mb-6 grid grid-cols-2 gap-6 lg:grid-cols-3'>
+                                    <div className='hidden lg:block'>
                                         <div className='mb-1 text-sm font-semibold text-gray-700'>
                                             Ngày sinh
                                         </div>
@@ -249,7 +264,7 @@ const RegisterProgram: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className='grid grid-cols-3 gap-6'>
+                                <div className='grid gap-6 lg:grid-cols-3'>
                                     <div>
                                         <div className='mb-1 text-sm font-semibold text-gray-700'>
                                             Số điện thoại
@@ -286,7 +301,7 @@ const RegisterProgram: React.FC = () => {
                                 </h2>
                             </div>
                             <div className='p-6'>
-                                <div className='mb-6 grid grid-cols-2 gap-8'>
+                                <div className='mb-6 grid gap-8 md:grid-cols-2'>
                                     <div>
                                         <div className='mb-2 text-sm font-semibold text-gray-700'>
                                             Lĩnh vực cần hỗ trợ
@@ -304,7 +319,7 @@ const RegisterProgram: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className='mb-6 grid grid-cols-2 gap-8'>
+                                <div className='mb-6 grid gap-8 md:grid-cols-2'>
                                     <div>
                                         <div className='mb-2 text-sm font-semibold text-gray-700'>
                                             Khó khăn hiện tại
@@ -322,7 +337,7 @@ const RegisterProgram: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className='mb-6 grid grid-cols-2 gap-8'>
+                                <div className='mb-6 grid gap-8 md:grid-cols-2'>
                                     <div>
                                         <div className='mb-2 text-sm font-semibold text-gray-700'>
                                             Tần suất buổi học mong muốn
@@ -363,10 +378,10 @@ const RegisterProgram: React.FC = () => {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className='flex justify-center gap-4'>
+                        <div className='flex justify-center gap-2 md:gap-4'>
                             <button
                                 onClick={handleEdit}
-                                className='flex items-center gap-2 rounded-lg border-2 border-blue-500 bg-white px-6 py-3 font-semibold text-blue-500 transition-colors hover:bg-blue-50'
+                                className='flex items-center gap-2 rounded-lg border-2 border-blue-500 bg-white px-1 py-3 font-semibold text-blue-500 transition-colors hover:bg-blue-50 md:px-6'
                             >
                                 <Edit size={20} />
                                 Cập nhật thông tin
@@ -388,7 +403,7 @@ const RegisterProgram: React.FC = () => {
     return (
         <>
             <Sidebar />
-            <div className='ml-[260px] min-h-screen bg-blue-50 p-6'>
+            <div className='ml-[80px] min-h-screen bg-blue-50 p-6 md:ml-[260px]'>
                 <div className='mx-auto w-full'>
                     {/* Header */}
                     <div className='mb-8'>
@@ -420,7 +435,7 @@ const RegisterProgram: React.FC = () => {
                                     Chọn các môn học hoặc lĩnh vực bạn muốn cải
                                     thiện (có thể chọn nhiều)
                                 </p>
-                                <div className='grid grid-cols-4 gap-3'>
+                                <div className='grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4'>
                                     {subjectOptions.map(
                                         (subject: SubjectOption) => (
                                             <label
@@ -454,7 +469,7 @@ const RegisterProgram: React.FC = () => {
                             </div>
 
                             {/* Two Column Layout */}
-                            <div className='mb-6 grid grid-cols-2 gap-6'>
+                            <div className='mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2'>
                                 <div>
                                     <label className='mb-2 block text-sm font-semibold text-gray-700'>
                                         Các môn học cụ thể{' '}
@@ -535,12 +550,16 @@ const RegisterProgram: React.FC = () => {
                             </h2>
                         </div>
                         <div className='p-6'>
-                            <div className='mb-6 grid grid-cols-2 gap-6'>
+                            <div className='mb-6 grid grid-cols-1 gap-6 md:grid-cols-2'>
                                 <div>
-                                    <label className='mb-2 block text-sm font-semibold text-gray-700'>
+                                    <label
+                                        htmlFor='frequency'
+                                        className='mb-2 block text-sm font-semibold text-gray-700'
+                                    >
                                         Tần suất buổi học mong muốn
                                     </label>
                                     <select
+                                        id='frequency'
                                         value={formData.frequency}
                                         onChange={(e) =>
                                             setFormData({
@@ -568,10 +587,14 @@ const RegisterProgram: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className='mb-2 block text-sm font-semibold text-gray-700'>
+                                    <label
+                                        htmlFor='format'
+                                        className='mb-2 block text-sm font-semibold text-gray-700'
+                                    >
                                         Hình thức học tập mong muốn
                                     </label>
                                     <select
+                                        id='format'
                                         value={formData.format}
                                         onChange={(e) =>
                                             setFormData({
@@ -598,10 +621,14 @@ const RegisterProgram: React.FC = () => {
                             </div>
 
                             <div className='mb-6'>
-                                <label className='mb-2 block text-sm font-semibold text-gray-700'>
+                                <label
+                                    htmlFor='availability'
+                                    className='mb-2 block text-sm font-semibold text-gray-700'
+                                >
                                     Thời gian có thể tham gia
                                 </label>
                                 <textarea
+                                    id='availability'
                                     value={formData.availability}
                                     onChange={(e) =>
                                         setFormData({
@@ -613,12 +640,16 @@ const RegisterProgram: React.FC = () => {
                                     className='h-24 w-full resize-none rounded-lg border p-3 focus:outline-none focus:ring-2 focus:ring-blue-400'
                                 />
                             </div>
-
                             <div>
-                                <label className='mb-2 block text-sm font-semibold text-gray-700'>
+                                <label
+                                    htmlFor='additionalInfo'
+                                    className='mb-2 block text-sm font-semibold text-gray-700'
+                                >
                                     Thông tin bổ sung
                                 </label>
                                 <textarea
+                                    id='additionalInfo'
+                                    name='additionalInfo'
                                     value={formData.additionalInfo}
                                     onChange={(e) =>
                                         setFormData({
@@ -632,16 +663,16 @@ const RegisterProgram: React.FC = () => {
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    {/* Submit Button */}
-                    <div className='flex justify-center'>
-                        <button
-                            onClick={handleSubmit}
-                            className='flex items-center gap-2 rounded-lg bg-blue-500 px-8 py-3 font-semibold text-white transition-colors hover:bg-blue-600'
-                        >
-                            ✓ Đăng kí ngay
-                        </button>
-                    </div>
+                {/* Submit Button */}
+                <div className='flex justify-center'>
+                    <button
+                        onClick={handleSubmit}
+                        className='flex items-center gap-2 rounded-lg bg-blue-500 px-8 py-3 font-semibold text-white transition-colors hover:bg-blue-600'
+                    >
+                        ✓ Đăng kí ngay
+                    </button>
                 </div>
             </div>
         </>

@@ -49,7 +49,7 @@ const Overview = () => {
     return (
         <>
             <Sidebar />
-            <div className='ml-[260px] bg-blue-50 p-6'>
+            <div className='ml-[80px] bg-blue-50 p-6 md:ml-[260px]'>
                 <div className='flex-1'>
                     <div className='mb-8'>
                         <h1 className='mb-2 text-3xl font-bold text-gray-800'>
@@ -61,7 +61,7 @@ const Overview = () => {
                         </p>
                     </div>
 
-                    <div className='mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4'>
+                    <div className='mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-4'>
                         <div className='rounded-xl border border-gray-100 bg-white p-6 shadow-sm'>
                             <div className='flex items-center gap-4'>
                                 <div className='flex h-12 w-12 items-center justify-center rounded-lg bg-green-100'>
@@ -136,7 +136,7 @@ const Overview = () => {
                         </div>
                     </div>
 
-                    <div className='grid grid-cols-2 gap-6'>
+                    <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
                         <div className='rounded-xl border border-gray-100 bg-white p-6 shadow-sm'>
                             <h2 className='mb-6 text-xl font-bold text-gray-800'>
                                 Buổi học sắp tới
