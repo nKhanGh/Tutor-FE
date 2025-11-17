@@ -180,12 +180,12 @@ const Sidebar = () => {
             break;
     }
     return (
-        <div className='fixed left-0 top-0 flex h-full w-[260px] flex-col items-center gap-6 border-r-[2px] border-gray-200 bg-white p-[25px]'>
-            <div className='flex w-[227px] justify-start gap-2'>
+        <div className='fixed left-0 top-0 flex h-full w-[80px] flex-col items-center gap-6 border-r-[2px] border-gray-200 bg-white py-[25px] md:w-[260px] md:p-[25px]'>
+            <div className='flex justify-start gap-2 md:w-[227px]'>
                 <div className='flex h-[40px] w-[40px] items-center justify-center rounded-[8px] bg-gradient-to-r from-blue-primary to-blue-secondary text-xl font-bold text-white'>
                     BK
                 </div>
-                <div className='ml-1 flex h-full items-center justify-center text-[16px] font-semibold text-blue-primary'>
+                <div className='ml-1 hidden h-full items-center justify-center text-[16px] font-semibold text-blue-primary md:flex'>
                     Hệ thống Tutor
                 </div>
             </div>
@@ -195,7 +195,7 @@ const Sidebar = () => {
                         to={element.path}
                         key={element.path}
                         className={({ isActive }) =>
-                            `mb-2 flex h-[44px] w-[227px] items-center gap-2 rounded-[8px] px-2 text-[16px] font-medium hover:bg-blue-primary hover:text-white ${
+                            `mb-2 flex h-[44px] w-[46px] items-center gap-2 rounded-[8px] px-4 text-[16px] font-medium hover:bg-blue-primary hover:text-white md:w-[227px] ${
                                 isActive
                                     ? 'bg-blue-primary text-white'
                                     : 'text-gray-500'
@@ -203,15 +203,17 @@ const Sidebar = () => {
                         }
                     >
                         <FontAwesomeIcon icon={element.icon} />
-                        <span>{element.content}</span>
+                        <span className='hidden md:block'>
+                            {element.content}
+                        </span>
                     </NavLink>
                 ))}
             </div>
-            <div className='mt-auto flex h-[70px] w-[227px] items-center gap-2 rounded-[12px] bg-blue-50 p-[12px]'>
+            <div className='mt-auto flex h-[70px] items-center gap-2 rounded-[12px] bg-blue-50 p-[12px] md:w-[227px]'>
                 <div className='text-1xl flex h-[40px] w-[40px] items-center justify-center rounded-full bg-blue-primary font-semibold text-white'>
                     K
                 </div>
-                <div>
+                <div className='hidden md:block'>
                     <div className='font-bold'>{actor.name}</div>
                     <div className='text-[12px] font-semibold text-gray-500'>
                         {actor.role}
@@ -219,12 +221,12 @@ const Sidebar = () => {
                 </div>
             </div>
 
-            <div className='flex h-[44px] w-[227px] cursor-pointer items-center pl-2 font-medium text-gray-500 hover:text-black focus:outline-none'>
+            <div className='flex h-[44px] cursor-pointer items-center pl-2 font-medium text-gray-500 hover:text-black focus:outline-none md:w-[227px]'>
                 <FontAwesomeIcon
                     icon={faArrowRightFromBracket}
                     className='mr-2 mt-1'
                 />
-                <span className='text-[16px]'>Đăng xuất</span>
+                <span className='hidden text-[16px] md:block'>Đăng xuất</span>
             </div>
         </div>
     );
