@@ -1,77 +1,155 @@
-// BƯỚC 1: Import useNavigate
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import loginIllustration from '@/assets/images/login-illustration.png';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNotification } from '@/hooks/useNotification';
+import { storage } from '@/utils/storage';
+import type { User, TutorProfile } from '@/interfaces';
+import { CheckCircle2 } from 'lucide-react';
+import { getUserInitials } from '@/utils/helpers'; // Import helper
 
 const Login = () => {
-    // BƯỚC 2: Khởi tạo hook
-    const navigate = useNavigate();
+    const { login } = useAuth();
+    const { showErrorNotification, showSuccessNotification } =
+        useNotification();
 
-    // Tạo hàm xử lý đăng nhập
+    const [users, setUsers] = useState<(User | TutorProfile)[]>([]);
+    const [selectedUser, setSelectedUser] = useState<string>('');
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            const allUsers = storage.getUsers();
+            setUsers(allUsers);
+            if (allUsers.length > 0) {
+                setSelectedUser(allUsers[0].username);
+            }
+        }, 0);
+        return () => clearTimeout(timer);
+    }, []);
+
     const handleSsoLogin = () => {
-        // Chuyển hướng người dùng đến trang overview
-        navigate('/student/overview');
+        if (!selectedUser) return;
+
+        const success = login(selectedUser);
+        if (success) {
+            showSuccessNotification('Đăng nhập thành công thông qua HCMUT SSO');
+        } else {
+            showErrorNotification('Tài khoản không tồn tại hoặc có lỗi xảy ra');
+        }
     };
 
     return (
-        <div className='flex min-h-screen bg-white'>
+        <div className='flex min-h-screen bg-white font-bevietnam'>
             {/* --- CỘT BÊN TRÁI (NỘI DUNG) --- */}
-            <div className='flex w-full flex-col justify-center p-8 md:w-1/2 lg:p-16'>
-                {/* Header "Login" ở góc trên bên trái */}
-                <div className='absolute left-0 top-0 p-6'>
+            <div className='relative flex w-full flex-col justify-center p-8 md:w-1/2 lg:p-16'>
+                <div className='absolute left-8 top-8 flex items-center gap-2'>
+                    <div className='flex h-8 w-8 items-center justify-center rounded bg-gradient-to-r from-[#0795DF] to-[#00C0EF] font-bold text-white'>
+                        BK
+                    </div>
                     <span className='text-lg font-semibold text-gray-800'>
-                        Login
+                        Hệ thống Tutor
                     </span>
                 </div>
 
-                {/* Nội dung chính (form) */}
                 <div className='mx-auto w-full max-w-sm'>
-                    {/* Tiêu đề */}
                     <h1 className='mb-3 text-3xl font-bold text-gray-900'>
-                        Chào mừng bạn đến với hệ thống Tutor!
+                        Chào mừng bạn!
                     </h1>
-
-                    {/* Mô tả */}
-                    <p className='mb-6 text-gray-600'>
-                        Bắt đầu ngay để tìm kiếm những giảng viên xuất sắc và
-                        cải thiện học lực của bạn
+                    <p className='mb-8 text-gray-600'>
+                        Đăng nhập để tiếp tục hành trình học tập và giảng dạy
+                        tại HCMUT.
                     </p>
 
-                    {/* Nút Đăng nhập SSO */}
+                    {/* DEMO SELECTOR */}
+                    <div className='mb-6 rounded-xl border border-blue-100 bg-blue-50 p-4'>
+                        <p className='mb-3 text-xs font-bold uppercase tracking-wider text-blue-600'>
+                            Chọn vai trò Demo
+                        </p>
+                        <div className='space-y-2'>
+                            {users.map((u) => (
+                                <label
+                                    key={u.id}
+                                    className={`flex cursor-pointer items-center rounded-lg border p-3 transition-all ${
+                                        selectedUser === u.username
+                                            ? 'border-blue-500 bg-white shadow-sm ring-1 ring-blue-500'
+                                            : 'border-transparent bg-transparent hover:border-blue-200 hover:bg-white'
+                                    }`}
+                                >
+                                    <input
+                                        type='radio'
+                                        name='login_user'
+                                        value={u.username}
+                                        checked={selectedUser === u.username}
+                                        onChange={(e) =>
+                                            setSelectedUser(e.target.value)
+                                        }
+                                        className='hidden'
+                                    />
+
+                                    {/* AVATAR AREA */}
+                                    <div
+                                        className={`mr-3 flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-white text-xs font-bold text-white shadow-sm ${u.avatarBg || 'bg-gray-400'}`}
+                                    >
+                                        {u.avatar ? (
+                                            <img
+                                                src={u.avatar}
+                                                alt={u.name}
+                                                className='h-full w-full object-cover'
+                                            />
+                                        ) : (
+                                            <span className='text-sm'>
+                                                {getUserInitials(u.name)}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className='flex-1'>
+                                        <p className='text-sm font-semibold text-gray-800'>
+                                            {u.name}
+                                        </p>
+                                        <p className='flex items-center gap-1 text-xs capitalize text-gray-500'>
+                                            {u.role === 'student'
+                                                ? '🎓 Sinh viên'
+                                                : u.role === 'tutor'
+                                                  ? '👨‍🏫 Tutor'
+                                                  : '🛠 Điều phối viên'}
+                                        </p>
+                                    </div>
+
+                                    {selectedUser === u.username && (
+                                        <CheckCircle2
+                                            size={20}
+                                            className='animate-in fade-in zoom-in text-blue-500 duration-200'
+                                        />
+                                    )}
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
                     <button
                         type='button'
-                        // BƯỚC 3: Thêm onClick
                         onClick={handleSsoLogin}
-                        className='w-full rounded-full border border-gray-300 bg-white px-4 py-3 text-center font-medium text-gray-700 shadow-sm transition duration-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                        className='flex w-full items-center justify-center gap-2 rounded-lg bg-[#0795DF] px-4 py-3.5 text-center font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:bg-[#0088C0] active:scale-95'
                     >
-                        Đăng nhập thông qua HCMUT SSO
+                        Đăng nhập qua HCMUT SSO
                     </button>
 
-                    {/* Điều khoản dịch vụ */}
-                    <p className='mt-6 text-center text-xs text-gray-500'>
-                        Bằng cách tiếp tục, bạn đã đồng ý với{' '}
-                        <a
-                            href='#'
-                            className='font-medium text-blue-600 hover:underline'
-                        >
-                            Điều khoản sử dụng
-                        </a>{' '}
-                        và{' '}
-                        <a
-                            href='#'
-                            className='font-medium text-blue-600 hover:underline'
-                        >
-                            quyền riêng tư
+                    <p className='mt-8 text-center text-xs text-gray-500'>
+                        Hệ thống hỗ trợ kỹ thuật:{' '}
+                        <a href='#' className='text-blue-600 hover:underline'>
+                            support@hcmut.edu.vn
                         </a>
                     </p>
                 </div>
             </div>
 
             {/* --- CỘT BÊN PHẢI (HÌNH ẢNH) --- */}
-            <div className='hidden items-center justify-center bg-gray-50 p-8 md:flex md:w-1/2'>
+            <div className='relative hidden items-center justify-center overflow-hidden bg-gray-50 p-8 md:flex md:w-1/2'>
+                <div className="absolute inset-0 scale-150 bg-[url('https://upload.wikimedia.org/wikipedia/commons/d/de/HCMUT_official_logo.png')] bg-center bg-no-repeat opacity-5 blur-3xl"></div>
                 <img
                     src={loginIllustration}
                     alt='Tutor session illustration'
-                    className='max-w-lg'
+                    className='animate-fade-in-up relative z-10 max-w-lg drop-shadow-2xl'
                 />
             </div>
         </div>

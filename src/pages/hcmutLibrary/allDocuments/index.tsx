@@ -1,397 +1,272 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Sidebar from '@/components/layouts/Sidebar';
 import {
     Search,
-    CircleX,
-    Funnel,
+    Filter,
     BookOpen,
-    Bookmark,
-    Eye,
-    ArrowDownToLine,
+    Download,
     Star,
-    Share2,
+    Eye,
+    FileText,
+    ExternalLink,
+    Bookmark,
+    BookmarkMinus,
 } from 'lucide-react';
 import { useNotification } from '@/hooks/useNotification';
-
-// 1. MOCK DATA: Dữ liệu giả lập phong phú hơn
-const MOCK_DOCS = [
-    {
-        id: 1,
-        title: 'Data Structures and Algorithms in Python',
-        authors: 'Michael T. Goodrich, Roberto Tamassia',
-        type: 'Giáo trình',
-        year: '2023',
-        description:
-            'Giáo trình toàn diện về cấu trúc dữ liệu và giải thuật sử dụng ngôn ngữ Python, phù hợp cho sinh viên năm 2.',
-        views: 1234,
-        downloads: 567,
-        rating: 4.8,
-        fileInfo: 'PDF • 8.5MB • 748 trang',
-    },
-    {
-        id: 2,
-        title: 'Computer Networking: A Top-Down Approach',
-        authors: 'James F. Kurose, Keith W. Ross',
-        type: 'Bài tập',
-        year: '2022',
-        description:
-            'Tài liệu chuẩn cho môn Mạng máy tính. Tiếp cận từ tầng ứng dụng xuống tầng vật lý.',
-        views: 2100,
-        downloads: 890,
-        rating: 4.9,
-        fileInfo: 'PDF • 12.1MB • 850 trang',
-    },
-    {
-        id: 3,
-        title: 'Slide bài giảng Hệ Điều Hành - Chương 4: CPU Scheduling',
-        authors: 'TS. Phạm Trần Vũ',
-        type: 'Slide',
-        year: '2024',
-        description:
-            'Slide bài giảng chi tiết về các thuật toán lập lịch cho CPU: FCFS, SJF, Round Robin...',
-        views: 450,
-        downloads: 120,
-        rating: 4.5,
-        fileInfo: 'PPTX • 2.3MB • 45 slide',
-    },
-    {
-        id: 4,
-        title: 'Tổng hợp đề thi Cuối kì Kiến trúc máy tính (2019-2023)',
-        authors: 'CLB Học thuật CSE',
-        type: 'Đề thi',
-        year: '2023',
-        description:
-            'Tuyển tập đề thi và đáp án chi tiết các năm gần đây của môn Kiến trúc máy tính.',
-        views: 5600,
-        downloads: 3200,
-        rating: 5.0,
-        fileInfo: 'ZIP • 15MB • 10 files',
-    },
-    {
-        id: 5,
-        title: 'Bài tập lớn Môn Lập trình Web (Assignment 2)',
-        authors: 'Nhóm 14 - L01',
-        type: 'Bài tập',
-        year: '2024',
-        description:
-            'Source code và báo cáo cho bài tập lớn xây dựng trang web bán hàng bằng ReactJS & NodeJS.',
-        views: 89,
-        downloads: 12,
-        rating: 4.2,
-        fileInfo: 'ZIP • 5MB',
-    },
-    {
-        id: 6,
-        title: 'Introduction to Artificial Intelligence',
-        authors: 'Stuart Russell, Peter Norvig',
-        type: 'Giáo trình',
-        year: '2021',
-        description:
-            "Cuốn sách 'gối đầu giường' cho nhập môn Trí tuệ nhân tạo. Phiên bản mới nhất.",
-        views: 3400,
-        downloads: 1100,
-        rating: 4.7,
-        fileInfo: 'PDF • 20MB • 1150 trang',
-    },
-];
+import { storage } from '@/utils/storage';
+import type { Document } from '@/interfaces';
 
 const CATEGORIES = [
     { id: 'all', name: 'Tất cả' },
     { id: 'book', name: 'Giáo trình' },
     { id: 'slide', name: 'Slide' },
-    { id: 'exercise', name: 'Bài tập' },
     { id: 'exam', name: 'Đề thi' },
+    { id: 'note', name: 'Ghi chú' },
 ];
 
-const AllDocument = () => {
+const AllDocuments = () => {
     const { showSuccessNotification } = useNotification();
-    // 2. STATE: Quản lý trạng thái lọc và tìm kiếm
+    const [documents, setDocuments] = useState<Document[]>([]);
     const [activeCategory, setActiveCategory] = useState('Tất cả');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // 3. LOGIC FILTER: Tự động tính toán danh sách hiển thị khi state thay đổi
+    // Fetch data với setTimeout để tránh lỗi setState đồng bộ
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            const data = storage.getDocuments();
+            setDocuments(data);
+        }, 0);
+        return () => clearTimeout(timer);
+    }, []);
+
     const filteredDocs = useMemo(() => {
-        return MOCK_DOCS.filter((doc) => {
-            // Lọc theo danh mục
-            const matchCategory =
+        return documents.filter((doc) => {
+            const matchCat =
                 activeCategory === 'Tất cả' || doc.type === activeCategory;
-            // Lọc theo từ khoá tìm kiếm (không phân biệt hoa thường)
             const matchSearch =
                 doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 doc.authors.toLowerCase().includes(searchTerm.toLowerCase());
-
-            return matchCategory && matchSearch;
+            return matchCat && matchSearch;
         });
-    }, [activeCategory, searchTerm]);
+    }, [activeCategory, searchTerm, documents]);
 
-    // Hàm xử lý mô phỏng hành động
-    const handleAction = (actionName: string, docTitle: string) => {
-        showSuccessNotification(`${actionName} tài liệu: "${docTitle}"`);
+    const handleAction = (action: string, title: string) => {
+        showSuccessNotification(`Đã ${action} tài liệu: ${title}`);
+    };
+
+    const handleToggleSave = (doc: Document) => {
+        const newStatus = storage.toggleSaveDocument(doc.id);
+        // Cập nhật state cục bộ để UI reflect ngay lập tức
+        setDocuments((prev) =>
+            prev.map((d) =>
+                d.id === doc.id ? { ...d, isSaved: newStatus } : d,
+            ),
+        );
+        showSuccessNotification(
+            newStatus ? 'Đã lưu tài liệu.' : 'Đã bỏ lưu tài liệu.',
+        );
     };
 
     return (
-        <div className='flex min-h-screen bg-[#F9FAFB] text-gray-600'>
+        <>
             <Sidebar />
-
-            <div className='ml-[260px] w-full p-8'>
-                {/* --- SEARCH BAR --- */}
-                <div className='mb-8 w-[800px] rounded-xl border border-gray-300 bg-white p-1.5 shadow-sm'>
-                    <div className='relative flex h-12 w-full items-center rounded-lg'>
-                        {/* Search Icon */}
-                        <div className='grid h-full w-12 place-items-center text-gray-400'>
-                            <Search />
-                        </div>
-                        {/* Search Input */}
-                        <input
-                            className='h-full w-full pr-4 text-gray-700 outline-none placeholder:text-gray-400'
-                            type='text'
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)} // Cập nhật state khi gõ
-                            placeholder='Tìm kiếm sách, tài liệu, giáo trình, tác giả...'
-                        />
-                        {searchTerm && (
-                            <button
-                                onClick={() => setSearchTerm('')}
-                                className='mr-4 text-gray-400 hover:text-gray-600'
-                            >
-                                <CircleX onClick={() => setSearchTerm('')} />
-                            </button>
-                        )}
+            <div className='ml-[80px] min-h-screen bg-[#f4f7fc] p-6 font-bevietnam md:ml-[260px]'>
+                <div className='mx-auto max-w-7xl'>
+                    {/* Header */}
+                    <div className='mb-8'>
+                        <h1 className='mb-2 flex items-center gap-2 text-2xl font-bold text-gray-800'>
+                            <BookOpen className='text-[#0795DF]' /> Thư viện Tài
+                            liệu HCMUT
+                        </h1>
+                        <p className='text-gray-600'>
+                            Kho tài liệu chính thống phục vụ học tập và nghiên
+                            cứu.
+                        </p>
                     </div>
-                </div>
 
-                {/* --- MAIN LAYOUT --- */}
-                <div className='grid grid-cols-12 gap-8'>
-                    {/* LEFT: FILTER CATEGORY */}
-                    <div className='col-span-3'>
-                        <div className='sticky top-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm'>
-                            <div className='mb-6 flex items-center gap-2 text-lg font-bold text-gray-800'>
-                                <Funnel className='h-5 w-5' />
-                                Danh mục
+                    {/* Search & Stats */}
+                    <div className='mb-8 grid grid-cols-1 gap-6 lg:grid-cols-4'>
+                        <div className='flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm lg:col-span-3'>
+                            <Search className='text-gray-400' size={20} />
+                            <input
+                                type='text'
+                                placeholder='Tìm kiếm tài liệu theo tên, tác giả, môn học...'
+                                className='flex-1 text-gray-700 outline-none'
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className='flex items-center justify-between rounded-xl bg-gradient-to-r from-[#0795DF] to-[#00C0EF] p-4 text-white shadow-md'>
+                            <div>
+                                <p className='text-xs font-medium opacity-90'>
+                                    Tổng tài liệu
+                                </p>
+                                <p className='text-2xl font-bold'>
+                                    {documents.length}
+                                </p>
                             </div>
+                            <FileText size={28} className='opacity-80' />
+                        </div>
+                    </div>
 
-                            <ul className='space-y-1'>
-                                {CATEGORIES.map((cat) => {
-                                    const isActive =
-                                        activeCategory === cat.name;
-                                    // Đếm số lượng item tương ứng category
-                                    const count =
-                                        cat.name === 'Tất cả'
-                                            ? MOCK_DOCS.length
-                                            : MOCK_DOCS.filter(
-                                                  (d) => d.type === cat.name,
-                                              ).length;
-
-                                    return (
-                                        <li
+                    <div className='grid grid-cols-1 gap-8 lg:grid-cols-12'>
+                        {/* Sidebar Filters */}
+                        <div className='lg:col-span-3'>
+                            <div className='sticky top-6 rounded-xl border border-gray-100 bg-white p-5 shadow-sm'>
+                                <h3 className='mb-4 flex items-center gap-2 font-bold text-gray-800'>
+                                    <Filter size={18} /> Danh mục
+                                </h3>
+                                <div className='space-y-1'>
+                                    {CATEGORIES.map((cat) => (
+                                        <button
                                             key={cat.id}
                                             onClick={() =>
                                                 setActiveCategory(cat.name)
-                                            } // Sự kiện click đổi category
-                                            className={`flex cursor-pointer items-center justify-between rounded-lg px-4 py-3 font-medium transition-all duration-200 ${
-                                                isActive
-                                                    ? 'bg-sky-100 text-sky-600 shadow-sm'
-                                                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700'
+                                            }
+                                            className={`w-full rounded-lg px-4 py-2.5 text-left text-sm font-medium transition-all ${
+                                                activeCategory === cat.name
+                                                    ? 'bg-blue-50 text-[#0795DF] shadow-sm'
+                                                    : 'text-gray-600 hover:bg-gray-50'
                                             }`}
                                         >
-                                            <span>{cat.name}</span>
-                                            <span
-                                                className={`rounded-full px-2 py-0.5 text-xs ${isActive ? 'bg-sky-100 text-sky-600' : 'bg-gray-100 text-gray-500'}`}
-                                            >
-                                                {count}
-                                            </span>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </div>
-                    </div>
-
-                    {/* RIGHT: DOCUMENT LIST */}
-                    <div className='col-span-9'>
-                        <div className='mb-4 flex items-end justify-between'>
-                            <div className='font-semibold text-gray-700'>
-                                Tìm thấy{' '}
-                                <span className='font-bold text-blue-600'>
-                                    {filteredDocs.length}
-                                </span>{' '}
-                                tài liệu
-                                {searchTerm && (
-                                    <span> cho từ khóa "{searchTerm}"</span>
-                                )}
+                                            {cat.name}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
-                        {filteredDocs.length > 0 ? (
-                            <div className='flex flex-col gap-6'>
-                                {filteredDocs.map((doc) => (
+                        {/* Document List */}
+                        <div className='space-y-4 lg:col-span-9'>
+                            {filteredDocs.length === 0 ? (
+                                <div className='rounded-xl border border-dashed bg-white py-12 text-center text-gray-400'>
+                                    Không tìm thấy tài liệu nào phù hợp.
+                                </div>
+                            ) : (
+                                filteredDocs.map((doc) => (
                                     <div
                                         key={doc.id}
-                                        className='group flex gap-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md'
+                                        className='relative flex flex-col gap-5 rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:shadow-md sm:flex-row'
                                     >
-                                        {/* Icon Tài liệu */}
+                                        {/* Icon/Thumbnail */}
                                         <div
-                                            className={`flex h-36 w-28 flex-shrink-0 flex-col items-center justify-center rounded-lg border bg-gray-50 text-gray-300 transition-colors ${
-                                                doc.type === 'Slide'
-                                                    ? 'border-orange-300'
-                                                    : doc.type === 'Đề thi'
-                                                      ? 'border-red-300'
-                                                      : doc.type === 'Bài tập'
-                                                        ? 'border-green-300'
-                                                        : 'border-blue-300'
-                                            }`}
+                                            className={`flex h-32 w-full items-center justify-center rounded-lg text-3xl font-bold text-white shadow-sm sm:w-24 ${doc.type === 'Giáo trình' ? 'bg-blue-500' : doc.type === 'Slide' ? 'bg-orange-400' : doc.type === 'Ghi chú' ? 'bg-green-500' : 'bg-red-400'}`}
                                         >
-                                            <BookOpen
-                                                className={`mb-2 h-10 w-10 ${
-                                                    doc.type === 'Slide'
-                                                        ? 'text-orange-300'
-                                                        : doc.type === 'Đề thi'
-                                                          ? 'text-red-300'
-                                                          : doc.type ===
-                                                              'Bài tập'
-                                                            ? 'text-green-300'
-                                                            : 'text-blue-300'
-                                                }`}
-                                            />
-                                            <span className='text-[10px] font-bold uppercase tracking-wider text-gray-400'>
-                                                {doc.type}
-                                            </span>
+                                            {doc.type === 'Giáo trình'
+                                                ? 'BOOK'
+                                                : doc.type === 'Slide'
+                                                  ? 'SL'
+                                                  : doc.type === 'Ghi chú'
+                                                    ? 'NOTE'
+                                                    : 'EXAM'}
                                         </div>
-                                        {/* Info */}
-                                        <div className='flex flex-1 flex-col justify-between py-1'>
-                                            <div>
-                                                <div className='flex items-start justify-between'>
-                                                    <h3
-                                                        onClick={() =>
-                                                            handleAction(
-                                                                'Xem chi tiết',
-                                                                doc.title,
-                                                            )
-                                                        }
-                                                        className='mb-1 line-clamp-1 cursor-pointer text-lg font-bold text-gray-800'
-                                                        title={doc.title}
-                                                    >
+
+                                        {/* Content */}
+                                        <div className='flex-1'>
+                                            <div className='flex items-start justify-between pr-10'>
+                                                <div>
+                                                    <h3 className='mb-1 cursor-pointer text-lg font-bold text-gray-800 hover:text-[#0795DF]'>
                                                         {doc.title}
                                                     </h3>
-                                                    {/* Bookmark icon */}
-                                                    <button className='text-gray-300 hover:text-yellow-400'>
-                                                        <Bookmark className='h-5 w-5' />
-                                                    </button>
+                                                    <p className='mb-2 text-sm text-gray-500'>
+                                                        {doc.authors} •{' '}
+                                                        {doc.year}
+                                                    </p>
                                                 </div>
-
-                                                <p className='mb-2 text-sm font-medium text-gray-500'>
-                                                    {doc.authors}
-                                                </p>
-
-                                                <div className='mb-3 flex items-center gap-3'>
-                                                    <span
-                                                        className={`rounded-md px-2.5 py-0.5 text-xs font-semibold ${
-                                                            doc.type === 'Slide'
-                                                                ? 'bg-orange-100 text-orange-700'
-                                                                : doc.type ===
-                                                                    'Đề thi'
-                                                                  ? 'bg-red-100 text-red-700'
-                                                                  : doc.type ===
-                                                                      'Bài tập'
-                                                                    ? 'bg-green-100 text-green-700'
-                                                                    : 'bg-sky-100 text-sky-700'
-                                                        }`}
-                                                    >
-                                                        {doc.type}
-                                                    </span>
-                                                    <span className='text-xs text-gray-400'>
-                                                        |
-                                                    </span>
-                                                    <span className='text-xs font-medium text-gray-500'>
-                                                        Năm {doc.year}
-                                                    </span>
-                                                </div>
-
-                                                <p className='mb-4 line-clamp-2 text-sm leading-relaxed text-gray-600'>
-                                                    {doc.description}
-                                                </p>
-
-                                                {/* Stats */}
-                                                <div className='flex items-center gap-6 text-xs text-gray-500'>
-                                                    <div
-                                                        className='flex items-center gap-1.5'
-                                                        title='Lượt xem'
-                                                    >
-                                                        <Eye className='h-4 w-4' />
-                                                        {doc.views.toLocaleString()}
-                                                    </div>
-                                                    <div
-                                                        className='flex items-center gap-1.5'
-                                                        title='Lượt tải'
-                                                    >
-                                                        <ArrowDownToLine className='h-4 w-4' />
-                                                        {doc.downloads.toLocaleString()}
-                                                    </div>
-                                                    <div
-                                                        className='flex items-center gap-1.5 font-bold text-yellow-500'
-                                                        title='Đánh giá'
-                                                    >
-                                                        <Star className='h-4 w-4 fill-current' />
-                                                        {doc.rating}
-                                                    </div>
-                                                    <span className='ml-auto rounded bg-gray-100 px-2 py-1 font-mono text-[10px] text-gray-600'>
-                                                        {doc.fileInfo}
-                                                    </span>
-                                                </div>
+                                                <span
+                                                    className={`rounded px-2.5 py-1 text-xs font-bold ${
+                                                        doc.type ===
+                                                        'Giáo trình'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : doc.type ===
+                                                                'Slide'
+                                                              ? 'bg-orange-100 text-orange-700'
+                                                              : doc.type ===
+                                                                  'Ghi chú'
+                                                                ? 'bg-green-100 text-green-700'
+                                                                : 'bg-red-100 text-red-700'
+                                                    }`}
+                                                >
+                                                    {doc.type}
+                                                </span>
                                             </div>
 
-                                            {/* Buttons */}
-                                            <div className='mt-5 flex gap-3 pt-4'>
+                                            <div className='mb-4 flex items-center gap-4 text-xs text-gray-500'>
+                                                <span className='flex items-center gap-1'>
+                                                    <Eye size={14} />{' '}
+                                                    {doc.views}
+                                                </span>
+                                                <span className='flex items-center gap-1'>
+                                                    <Download size={14} />{' '}
+                                                    {doc.downloads}
+                                                </span>
+                                                <span className='flex items-center gap-1 text-yellow-600'>
+                                                    <Star
+                                                        size={14}
+                                                        fill='currentColor'
+                                                    />{' '}
+                                                    {doc.rating}
+                                                </span>
+                                                <span className='rounded bg-gray-100 px-2 py-0.5 font-mono text-gray-600'>
+                                                    {doc.fileInfo}
+                                                </span>
+                                            </div>
+
+                                            <div className='flex gap-3 border-t border-gray-50 pt-2'>
                                                 <button
                                                     onClick={() =>
                                                         handleAction(
-                                                            'Xem',
+                                                            'mở',
                                                             doc.title,
                                                         )
                                                     }
-                                                    className='flex-1 rounded-lg bg-[#0795DF] px-4 py-2 text-sm font-medium text-white shadow-sm transition-all'
+                                                    className='flex items-center gap-2 rounded-lg bg-[#0795DF] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-600'
                                                 >
+                                                    <ExternalLink size={16} />{' '}
                                                     Xem ngay
                                                 </button>
                                                 <button
                                                     onClick={() =>
                                                         handleAction(
-                                                            'Chia sẻ',
+                                                            'tải xuống',
                                                             doc.title,
                                                         )
                                                     }
-                                                    className='flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-100'
+                                                    className='flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50'
                                                 >
-                                                    <Share2 className='h-4 w-4' />
-                                                    Chia sẻ
-                                                </button>
-                                                <button
-                                                    onClick={() =>
-                                                        handleAction(
-                                                            'Tải về',
-                                                            doc.title,
-                                                        )
-                                                    }
-                                                    className='flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-100'
-                                                >
-                                                    <ArrowDownToLine className='h-4 w-4' />
-                                                    Tải về
+                                                    <Download size={16} /> Tải
+                                                    về
                                                 </button>
                                             </div>
                                         </div>
+
+                                        {/* Save Button absolute positioned */}
+                                        <button
+                                            onClick={() =>
+                                                handleToggleSave(doc)
+                                            }
+                                            className={`absolute right-4 top-4 rounded-full p-2 transition-colors ${doc.isSaved ? 'bg-blue-50 text-[#0795DF]' : 'text-gray-300 hover:bg-gray-50'}`}
+                                            title={
+                                                doc.isSaved
+                                                    ? 'Bỏ lưu'
+                                                    : 'Lưu tài liệu'
+                                            }
+                                        >
+                                            {doc.isSaved ? (
+                                                <BookmarkMinus size={20} />
+                                            ) : (
+                                                <Bookmark size={20} />
+                                            )}
+                                        </button>
                                     </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className='mt-20 text-center text-gray-500'>
-                                Không tìm thấy tài liệu phù hợp.
-                            </div>
-                        )}
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 };
 
-export default AllDocument;
+export default AllDocuments;

@@ -1,18 +1,22 @@
 import { ArrowLeft, BarChart } from 'lucide-react';
-import type { Student } from '@/interfaces/Student'; // Import "luật"
-import { mockStats } from '@/interfaces/Student'; // Import data thống kê
+import type { StudentProfile } from '@/interfaces'; // Cập nhật import
 
-// Định nghĩa props
 interface StudentDetailViewProps {
-    student: Student | null;
+    student: StudentProfile | null; // Cập nhật type
     onBack: () => void;
 }
 
-// Component
 const StudentDetailView: React.FC<StudentDetailViewProps> = ({
     student,
     onBack,
 }) => {
+    // Mock stats trực tiếp ở đây thay vì import
+    const stats = {
+        tutors: 2,
+        sessions: 15,
+        courses: 4,
+    };
+
     return (
         <div className='h-full'>
             <div className='mb-4 flex items-center gap-3'>
@@ -29,38 +33,30 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             <div className='overflow-hidden rounded-2xl bg-white shadow-sm'>
                 <div className='flex items-center gap-4 bg-gradient-to-br from-[#00C0EF] to-[#0795DF] p-6'>
                     <div className='flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-white text-3xl font-bold text-blue-600'>
-                        {student?.firstName.charAt(0)}
+                        {student?.name.charAt(0)}
                     </div>
                     <div>
                         <h2 className='text-2xl font-bold text-white'>
                             {student?.name}
                         </h2>
                         <p className='text-base text-white opacity-90'>
-                            Sinh viên
+                            Sinh viên - {student?.major}
                         </p>
                     </div>
                 </div>
                 <div className='grid grid-cols-1 gap-x-8 gap-y-6 p-6 md:grid-cols-3'>
                     <div>
-                        <label className='text-sm text-gray-500'>
-                            Mã số sinh viên
-                        </label>
+                        <label className='text-sm text-gray-500'>MSSV</label>
                         <p className='font-medium text-gray-800'>
                             {student?.mssv}
                         </p>
                     </div>
                     <div>
                         <label className='text-sm text-gray-500'>
-                            Họ và tên lót
+                            Họ và tên
                         </label>
                         <p className='font-medium text-gray-800'>
-                            {student?.lastName}
-                        </p>
-                    </div>
-                    <div>
-                        <label className='text-sm text-gray-500'>Tên</label>
-                        <p className='font-medium text-gray-800'>
-                            {student?.firstName}
+                            {student?.name}
                         </p>
                     </div>
                     <div>
@@ -99,13 +95,8 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                             {student?.email}
                         </p>
                     </div>
-                    <div>
-                        <label className='text-sm text-gray-500'>Khoa</label>
-                        <p className='font-medium text-gray-800'>
-                            {student?.khoa}
-                        </p>
-                    </div>
                 </div>
+
                 <div className='border-t border-gray-100 p-6'>
                     <div className='mb-4 flex items-center gap-2'>
                         <BarChart size={20} className='text-gray-700' />
@@ -116,7 +107,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                     <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
                         <div className='rounded-xl bg-blue-100 p-4 text-center'>
                             <p className='text-3xl font-bold text-blue-600'>
-                                {mockStats.tutors}
+                                {stats.tutors}
                             </p>
                             <p className='font-medium text-blue-600'>
                                 Tutor hiện tại
@@ -124,7 +115,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                         </div>
                         <div className='rounded-xl bg-yellow-100 p-4 text-center'>
                             <p className='text-3xl font-bold text-yellow-700'>
-                                {mockStats.sessions}
+                                {stats.sessions}
                             </p>
                             <p className='font-medium text-yellow-700'>
                                 Buổi học
@@ -132,7 +123,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                         </div>
                         <div className='rounded-xl bg-green-100 p-4 text-center'>
                             <p className='text-3xl font-bold text-green-600'>
-                                {mockStats.courses}
+                                {stats.courses}
                             </p>
                             <p className='font-medium text-green-600'>
                                 Khóa học hoàn thành

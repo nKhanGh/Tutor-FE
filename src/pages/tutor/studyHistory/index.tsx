@@ -1,405 +1,457 @@
 import Sidebar from '@/components/layouts/Sidebar';
 import CancellationReasonModal from '@/components/UI/CanellationReasonModal';
-import FeedbackModal from '@/components/UI/FeedbackModal';
-import type { Session } from '@/interfaces/Sesson';
-import { Search } from 'lucide-react';
-import { useState } from 'react';
+import SessionDetailModal from '@/components/UI/tutor/SessionDetailModal';
+import AddProgressModal from '@/components/UI/tutor/AddProgressModal';
+import {
+    Search,
+    Calendar,
+    Clock,
+    CheckCircle,
+    XCircle,
+    Filter,
+    FileText,
+    Plus,
+    Eye,
+} from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { storage } from '@/utils/storage';
+import { getUserInitials } from '@/utils/helpers';
+import type { Session } from '@/interfaces';
 
-const StudyHistory = () => {
+const TutorStudyHistory = () => {
+    const { user } = useAuth();
+
+    // --- State quản lý dữ liệu ---
+    const [sessions, setSessions] = useState<Session[]>([]);
+    const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
+
+    // Filter states
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const [startDate, setStartDate] = useState<string>('');
-    const [endDate, setEndDate] = useState<string>('');
+    const [filterStatus, setFilterStatus] = useState<string>('all');
+    const [visibleCount, setVisibleCount] = useState<number>(10);
+
+    // Modal states
     const [selectedSession, setSelectedSession] = useState<Session | null>(
         null,
     );
-    const [feedbackModalOpen, setFeedbackModalOpen] = useState<boolean>(false); // Dùng cho "Xem biên bản"
-    const [reasonModalOpen, setReasonModalOpen] = useState<boolean>(false);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(false);
+    const [isReasonModalOpen, setIsReasonModalOpen] = useState<boolean>(false);
+    const [isAddProgressModalOpen, setIsAddProgressModalOpen] =
+        useState<boolean>(false);
 
-    // Sửa lại dữ liệu để khớp với hình ảnh (trang Tutor)
-    const [sessions] = useState<Session[]>([
-        {
-            id: '1',
-            date: '18/10/2025',
-            time: '15:00 - 16:30',
-            title: 'Đại số tuyến tính - Không gian vector', // Sửa title
-            student: 'Nguyễn Hữu Khang', // Sửa tutor -> student
-            status: 'completed',
-            canViewReason: false,
-            // Thêm review (biên bản) để nút "Xem biên bản" xuất hiện
-            review: {
-                rating: 5,
-                comment: 'Biên bản buổi học...',
-            },
-        },
-        {
-            id: '2',
-            date: '17/10/2025',
-            time: '09:00 - 10:30',
-            title: 'Vật lý 1 - Điện trường tĩnh',
-            student: 'Đặng Phạm Gia Long', // Sửa tutor -> student
-            status: 'completed',
-            canViewReason: false,
-            review: {
-                rating: 5,
-                comment: 'Biên bản buổi học...',
-            },
-        },
-        {
-            id: '3',
-            date: '16/10/2025',
-            time: '14:00 - 15:30',
-            title: 'Giải tích 2 - Tích phân đường',
-            student: 'Trương Thanh Nhân', // Sửa tutor -> student
-            status: 'cancelled-tutor',
-            canViewReason: true,
-            cancellationReason:
-                'Tôi cảm thấy không khỏe nên cần đi bệnh viện gấp, xin lỗi sinh viên và nhà trường vì sự bất tiện này.',
-        },
-        {
-            id: '4',
-            date: '14/10/2025',
-            time: '10:00 - 11:30',
-            title: 'Công nghệ phần mềm - Activity Diagram',
-            student: 'Cấn Hoàng Hà', // Sửa tutor -> student
-            status: 'cancelled-student',
-            canViewReason: true,
-            cancellationReason:
-                'Gia đình có việc quan trọng nên tôi phải về quê gấp, chân thành xin lỗi nhà trường và giảng viên hướng dẫn, tôi sẽ tìm buổi khác phù hợp',
-        },
-        {
-            id: '5',
-            date: '13/10/2025',
-            time: '15:00 - 16:30',
-            title: 'Đại số tuyến tính - Định thức & Ma trận nghịch đảo',
-            student: 'Nguyễn Hữu Khang', // Sửa tutor -> student
-            status: 'completed',
-            canViewReason: false,
-            review: {
-                rating: 4,
-                comment: 'Biên bản buổi học...',
-            },
-        },
-    ]);
+    // --- Fetch Data Function (Tách ra để tái sử dụng) ---
+    const fetchData = useCallback(() => {
+        // Sử dụng setTimeout để tránh lỗi "setState synchronously within an effect"
+        setTimeout(() => {
+            if (user) {
+                // Lấy tất cả session của Tutor
+                const all = storage.getSessionsForTutor(user.id);
 
-    // (Bỏ hàm updateSessionFeedback vì không cần)
-
-    const getStatusBadge = (status: Session['status']) => {
-        switch (status) {
-            case 'completed':
-                return (
-                    <span className='rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-600 sm:px-3 sm:text-sm'>
-                        Hoàn thành
-                    </span>
+                // Lọc ra những buổi đã kết thúc hoặc bị hủy (History)
+                const history = all.filter((s) =>
+                    [
+                        'completed',
+                        'cancelled-tutor',
+                        'cancelled-student',
+                    ].includes(s.status),
                 );
-            case 'cancelled-tutor':
-                return (
-                    <span className='rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-600 sm:px-3 sm:text-sm'>
-                        Đã hủy (Tutor)
-                    </span>
+
+                // Sort mới nhất trước
+                history.sort(
+                    (a, b) =>
+                        new Date(b.date).getTime() - new Date(a.date).getTime(),
                 );
-            case 'cancelled-student':
-                return (
-                    <span className='rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-600 sm:px-3 sm:text-sm'>
-                        Đã hủy (SV)
-                    </span>
-                );
-            default:
-                return null;
-        }
-    };
-
-    const handleOpenFeedback = (session: Session) => {
-        // Dùng cho "Xem biên bản"
-        setSelectedSession(session);
-        setFeedbackModalOpen(true);
-    };
-
-    const handleOpenReason = (session: Session) => {
-        setSelectedSession(session);
-        setReasonModalOpen(true);
-    };
-
-    const filteredSessions = sessions.filter((session) => {
-        // ==== 1. Lọc theo text ====
-        const matchesTitle = session.title
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase());
-
-        const matchesStudent =
-            session.student &&
-            session.student.toLowerCase().includes(searchQuery.toLowerCase());
-
-        const matchesText = matchesTitle || matchesStudent;
-
-        // ==== 2. Lọc theo ngày (ĐÃ SỬA LẠI LOGIC) ====
-
-        // Tạo ngày của session (chuẩn lúc 00:00:00)
-        const [d, m, y] = session.date.split('/').map(Number);
-        const sessionDate = new Date(y, m - 1, d);
-
-        // Mặc định là cho qua
-        let matchesDate = true;
-
-        // Nếu có ngày bắt đầu (startDate)
-        if (startDate) {
-            const [yS, mS, dS] = startDate.split('-').map(Number);
-            const start = new Date(yS, mS - 1, dS);
-
-            // Nếu ngày session < ngày bắt đầu -> LOẠI
-            if (sessionDate < start) {
-                matchesDate = false;
+                setSessions(history);
             }
-        }
+        }, 0);
+    }, [user]);
 
-        // Nếu có ngày kết thúc (endDate)
-        if (endDate) {
-            const [yE, mE, dE] = endDate.split('-').map(Number);
-            const end = new Date(yE, mE - 1, dE);
+    // --- Initial Fetch ---
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
-            // Nếu ngày session > ngày kết thúc -> LOẠI
-            if (sessionDate > end) {
-                matchesDate = false;
+    // --- Filter Logic (Chạy khi sessions hoặc filter thay đổi) ---
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            let result = sessions;
+
+            // 1. Filter by Status
+            if (filterStatus !== 'all') {
+                if (filterStatus === 'completed') {
+                    result = result.filter((s) => s.status === 'completed');
+                } else if (filterStatus === 'cancelled') {
+                    result = result.filter((s) =>
+                        s.status.includes('cancelled'),
+                    );
+                }
             }
-        }
 
-        // (Bạn có thể bỏ comment dòng console.log dưới đây để xem nó lọc thế nào)
-        // console.log(`Session: ${session.date}, Start: ${startDate}, End: ${endDate}, Keep: ${matchesText && matchesDate}`);
+            // 2. Filter by Search (Subject or Tutor Name)
+            if (searchQuery.trim()) {
+                const lowerQuery = searchQuery.toLowerCase();
+                result = result.filter(
+                    (s) =>
+                        s.title.toLowerCase().includes(lowerQuery) ||
+                        s.studentName.toLowerCase().includes(lowerQuery),
+                );
+            }
 
-        // ==== 3. Trả về kết quả ====
-        return matchesText && matchesDate;
-    });
+            setFilteredSessions(result);
+            setVisibleCount(10); // Reset pagination khi filter đổi
+        }, 0);
+
+        return () => clearTimeout(timer);
+    }, [sessions, filterStatus, searchQuery]);
+
+    // --- Handlers ---
+    const handleLoadMore = () => {
+        setVisibleCount((prev) => prev + 10);
+    };
+
+    // Mở modal chi tiết
+    const handleViewDetail = (session: Session) => {
+        setSelectedSession(session);
+        setIsDetailModalOpen(true);
+    };
+
+    // Mở modal xem lý do hủy
+    const handleViewReason = (e: React.MouseEvent, session: Session) => {
+        e.stopPropagation();
+        setSelectedSession(session);
+        setIsReasonModalOpen(true);
+    };
+
+    // Mở modal thêm biên bản/tiến độ
+    const handleAddProgress = (e: React.MouseEvent, session: Session) => {
+        e.stopPropagation();
+        setSelectedSession(session); // Set session hiện tại để truyền vào modal
+        setIsAddProgressModalOpen(true);
+    };
+
+    // Helper render badge trạng thái
+    const getStatusBadge = (status: string) => {
+        if (status === 'completed')
+            return (
+                <span className='flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700'>
+                    <CheckCircle size={12} /> Hoàn thành
+                </span>
+            );
+        if (status.includes('cancelled'))
+            return (
+                <span className='flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700'>
+                    <XCircle size={12} /> Đã hủy
+                </span>
+            );
+        return null;
+    };
+
+    const displayedSessions = filteredSessions.slice(0, visibleCount);
 
     return (
         <>
             <Sidebar />
-            <div className='ml-[80px] min-h-screen bg-blue-50 p-3 pt-4 sm:p-4 md:ml-[260px] md:p-6'>
+            <div className='ml-[80px] min-h-screen bg-[#f4f7fc] p-3 pt-4 font-bevietnam sm:p-4 md:ml-[260px] md:p-6'>
                 <div className='mx-auto max-w-7xl'>
                     {/* Header */}
-                    <div className='mb-4 md:mb-6'>
-                        <h1 className='mb-2 text-3xl font-bold text-gray-800'>
-                            Lịch sử buổi học
+                    <div className='mb-6'>
+                        <h1 className='mb-2 text-2xl font-bold text-gray-800'>
+                            Lịch sử giảng dạy
                         </h1>
-                        <p className='text-base text-gray-600'>
-                            Xem lại tất cả các buổi tư vấn đã diễn ra.
+                        <p className='text-gray-600'>
+                            Xem lại các buổi học đã diễn ra và quản lý biên bản
+                            học tập.
                         </p>
                     </div>
 
-                    {/* Search and Filters */}
-                    <div className='mb-4 rounded-2xl bg-white p-3 shadow-sm sm:p-4 md:mb-6 md:p-6'>
-                        <div className='flex flex-col gap-3 sm:gap-4 lg:flex-row'>
-                            <div className='relative flex-1'>
-                                <Search
-                                    className='absolute left-3 top-1/2 -translate-y-1/2 transform text-gray-400 sm:left-4'
-                                    size={20}
-                                />
-                                <input
-                                    type='text'
-                                    placeholder='Tìm theo môn học, sinh viên...' // Sửa placeholder
-                                    value={searchQuery}
-                                    onChange={(e) =>
-                                        setSearchQuery(e.target.value)
-                                    }
-                                    className='w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:py-3 sm:pl-12 sm:pr-4 sm:text-base'
-                                />
-                            </div>
-                            <div className='flex items-center gap-2 sm:gap-4'>
-                                <input
-                                    type='date'
-                                    value={startDate}
-                                    onChange={(e) =>
-                                        setStartDate(e.target.value)
-                                    }
-                                    className='flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:px-4 sm:py-3 sm:text-base'
-                                />
-                                <span className='text-gray-500'>-</span>
-                                <input
-                                    type='date'
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className='flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:px-4 sm:py-3 sm:text-base'
-                                />
-                            </div>
+                    {/* Search & Filter Bar */}
+                    <div className='mb-6 flex flex-col gap-4 md:flex-row'>
+                        <div className='relative flex-1'>
+                            <Search
+                                className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400'
+                                size={20}
+                            />
+                            <input
+                                type='text'
+                                placeholder='Tìm kiếm theo môn học, tên sinh viên...'
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className='w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400'
+                            />
                         </div>
-                    </div>
-
-                    {/* Sessions - Desktop Table View */}
-                    <div className='hidden overflow-hidden rounded-2xl bg-white shadow-sm lg:block'>
-                        <table className='w-full'>
-                            <thead className='border-b bg-gray-50'>
-                                <tr>
-                                    <th className='px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider text-gray-600'>
-                                        NGÀY & GIỜ
-                                    </th>
-                                    <th className='px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider text-gray-600'>
-                                        CHỦ ĐỀ
-                                    </th>
-                                    <th className='px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider text-gray-600'>
-                                        SINH VIÊN {/* Sửa TUTOR -> SINH VIÊN */}
-                                    </th>
-                                    <th className='px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider text-gray-600'>
-                                        TRẠNG THÁI
-                                    </th>
-                                    <th className='px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider text-gray-600'>
-                                        HÀNH ĐỘNG
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className='divide-y divide-gray-100'>
-                                {filteredSessions.map((session) => (
-                                    <tr
-                                        key={session.id}
-                                        className='transition-colors hover:bg-gray-50'
-                                    >
-                                        <td className='px-6 py-4'>
-                                            <div className='font-semibold text-gray-800'>
-                                                {session.date}
-                                            </div>
-                                            <div className='text-sm text-gray-600'>
-                                                {session.time}
-                                            </div>
-                                        </td>
-                                        <td className='px-6 py-4'>
-                                            <div className='font-medium text-gray-800'>
-                                                {session.title}
-                                            </div>
-                                        </td>
-                                        <td className='px-6 py-4'>
-                                            <div className='text-gray-800'>
-                                                {session.student}{' '}
-                                                {/* Sửa session.tutor -> session.student */}
-                                            </div>
-                                        </td>
-                                        <td className='px-6 py-4'>
-                                            <div className='flex items-center gap-2'>
-                                                {getStatusBadge(session.status)}
-                                            </div>
-                                        </td>
-                                        <td className='px-6 py-4'>
-                                            {/* Sửa lại logic nút bấm cho khớp hình */}
-                                            <div className='flex flex-col gap-2'>
-                                                {/* Bỏ nút "Phản hồi" (canFeedback) */}
-
-                                                {session.review && (
-                                                    <button
-                                                        onClick={() =>
-                                                            handleOpenFeedback(
-                                                                session,
-                                                            )
-                                                        }
-                                                        className='rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-200'
-                                                    >
-                                                        Xem biên bản{' '}
-                                                        {/* Sửa text */}
-                                                    </button>
-                                                )}
-                                                {session.canViewReason && (
-                                                    <button
-                                                        onClick={() =>
-                                                            handleOpenReason(
-                                                                session,
-                                                            )
-                                                        }
-                                                        className='rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-200'
-                                                    >
-                                                        Xem lý do
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-
-                        {/* Load More Button */}
-                        <div className='border-t p-6 text-center'>
-                            <button className='rounded-lg bg-blue-50 px-6 py-3 font-semibold text-blue-600 transition-colors hover:bg-blue-100'>
-                                Xem thêm các buổi cũ hơn
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Sessions - Mobile Card View */}
-                    <div className='space-y-3 sm:space-y-4 lg:hidden'>
-                        {filteredSessions.map((session) => (
-                            <div
-                                key={session.id}
-                                className='rounded-xl bg-white p-4 shadow-sm sm:p-5'
+                        <div className='relative'>
+                            <Filter
+                                className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400'
+                                size={18}
+                            />
+                            <select
+                                value={filterStatus}
+                                onChange={(e) =>
+                                    setFilterStatus(e.target.value)
+                                }
+                                className='cursor-pointer appearance-none rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400'
                             >
-                                {/* Header */}
-                                <div className='mb-3 flex items-start justify-between'>
-                                    <div className='flex-1'>
-                                        <div className='mb-1 text-sm font-semibold text-gray-800 sm:text-base'>
-                                            {session.date}
-                                        </div>
-                                        <div className='text-xs text-gray-600 sm:text-sm'>
-                                            {session.time}
-                                        </div>
-                                    </div>
-                                    {getStatusBadge(session.status)}
-                                </div>
-
-                                {/* Content */}
-                                <div className='mb-3 border-b border-gray-100 pb-3'>
-                                    <div className='mb-2 text-sm font-medium text-gray-800 sm:text-base'>
-                                        {session.title}
-                                    </div>
-                                    <div className='text-xs text-gray-600 sm:text-sm'>
-                                        Sinh viên: {session.student} {/* Sửa */}
-                                    </div>
-                                </div>
-
-                                {/* Actions (Sửa cho khớp hình) */}
-                                <div className='flex flex-wrap gap-2'>
-                                    {/* Bỏ nút "Phản hồi" */}
-                                    {session.review && (
-                                        <button
-                                            onClick={() =>
-                                                handleOpenFeedback(session)
-                                            }
-                                            className='min-w-[140px] flex-1 rounded-lg bg-blue-100 px-3 py-2 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-200 sm:text-sm'
-                                        >
-                                            Xem biên bản {/* Sửa text */}
-                                        </button>
-                                    )}
-                                    {session.canViewReason && (
-                                        <button
-                                            onClick={() =>
-                                                handleOpenReason(session)
-                                            }
-                                            className='min-w-[140px] flex-1 rounded-lg bg-blue-100 px-3 py-2 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-200 sm:text-sm'
-                                        >
-                                            Xem lý do
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-
-                        {/* Load More Button */}
-                        <div className='pt-2'>
-                            <button className='w-full rounded-lg bg-blue-50 px-6 py-3 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-100 sm:text-base'>
-                                Xem thêm các buổi cũ hơn
-                            </button>
+                                <option value='all'>Tất cả trạng thái</option>
+                                <option value='completed'>Đã hoàn thành</option>
+                                <option value='cancelled'>Đã hủy</option>
+                            </select>
                         </div>
+                    </div>
+
+                    {/* Table */}
+                    <div className='overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm'>
+                        <div className='overflow-x-auto'>
+                            <table className='w-full'>
+                                <thead className='border-b border-gray-100 bg-gray-50'>
+                                    <tr>
+                                        <th className='px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-500'>
+                                            Sinh viên
+                                        </th>
+                                        <th className='px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-500'>
+                                            Thời gian
+                                        </th>
+                                        <th className='px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-500'>
+                                            Chủ đề / Môn học
+                                        </th>
+                                        <th className='px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-500'>
+                                            Trạng thái
+                                        </th>
+                                        <th className='px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-gray-500'>
+                                            Hành động
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className='divide-y divide-gray-100'>
+                                    {displayedSessions.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={5}
+                                                className='py-8 text-center italic text-gray-400'
+                                            >
+                                                Không tìm thấy buổi học nào phù
+                                                hợp.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        displayedSessions.map((session) => {
+                                            // Lấy thông tin sinh viên để hiển thị Avatar
+                                            const studentInfo =
+                                                storage.getUserById(
+                                                    session.studentId,
+                                                );
+                                            const hasAvatar =
+                                                !!studentInfo?.avatar;
+
+                                            return (
+                                                <tr
+                                                    key={session.id}
+                                                    onClick={() =>
+                                                        handleViewDetail(
+                                                            session,
+                                                        )
+                                                    }
+                                                    className='cursor-pointer transition-colors hover:bg-blue-50'
+                                                >
+                                                    {/* Cột Sinh viên (Avatar + Tên) */}
+                                                    <td className='whitespace-nowrap px-6 py-4'>
+                                                        <div className='flex items-center gap-3'>
+                                                            <div
+                                                                className={`flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-100 text-xs font-bold text-white shadow-sm ${!hasAvatar ? studentInfo?.avatarBg || 'bg-gray-400' : ''}`}
+                                                            >
+                                                                {hasAvatar ? (
+                                                                    <img
+                                                                        src={
+                                                                            studentInfo?.avatar
+                                                                        }
+                                                                        alt='Student Avatar'
+                                                                        className='h-full w-full object-cover'
+                                                                    />
+                                                                ) : (
+                                                                    getUserInitials(
+                                                                        session.studentName,
+                                                                    )
+                                                                )}
+                                                            </div>
+                                                            <div className='flex flex-col'>
+                                                                <span className='text-sm font-semibold text-gray-800'>
+                                                                    {
+                                                                        session.studentName
+                                                                    }
+                                                                </span>
+                                                                {studentInfo?.username && (
+                                                                    <span className='text-xs text-gray-500'>
+                                                                        {
+                                                                            studentInfo.username
+                                                                        }
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Cột Thời gian */}
+                                                    <td className='whitespace-nowrap px-6 py-4'>
+                                                        <div className='flex items-center gap-2 text-sm font-bold text-gray-800'>
+                                                            <Calendar
+                                                                size={14}
+                                                                className='text-blue-500'
+                                                            />
+                                                            {session.date}
+                                                        </div>
+                                                        <div className='mt-1 flex items-center gap-2 text-xs text-gray-500'>
+                                                            <Clock size={12} />{' '}
+                                                            {session.time}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Cột Môn học */}
+                                                    <td className='px-6 py-4'>
+                                                        <div
+                                                            className='line-clamp-1 text-sm font-semibold text-gray-800'
+                                                            title={
+                                                                session.title
+                                                            }
+                                                        >
+                                                            {session.title}
+                                                        </div>
+                                                        <div className='text-xs text-gray-500'>
+                                                            {session.type ===
+                                                            'online'
+                                                                ? 'Trực tuyến'
+                                                                : session.locationOrLink}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Cột Trạng thái */}
+                                                    <td className='px-6 py-4'>
+                                                        {getStatusBadge(
+                                                            session.status,
+                                                        )}
+                                                    </td>
+
+                                                    {/* Cột Hành động */}
+                                                    <td className='px-6 py-4 text-right'>
+                                                        <div className='flex justify-end gap-2'>
+                                                            {session.status ===
+                                                            'completed' ? (
+                                                                session.progressNote ? (
+                                                                    <button
+                                                                        onClick={(
+                                                                            e,
+                                                                        ) => {
+                                                                            e.stopPropagation();
+                                                                            handleViewDetail(
+                                                                                session,
+                                                                            );
+                                                                        }}
+                                                                        className='flex items-center gap-1 rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 transition-colors hover:bg-blue-100'
+                                                                    >
+                                                                        <Eye
+                                                                            size={
+                                                                                14
+                                                                            }
+                                                                        />{' '}
+                                                                        Chi tiết
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={(
+                                                                            e,
+                                                                        ) =>
+                                                                            handleAddProgress(
+                                                                                e,
+                                                                                session,
+                                                                            )
+                                                                        }
+                                                                        className='flex items-center gap-1 rounded-lg bg-[#0795DF] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-blue-600'
+                                                                    >
+                                                                        <Plus
+                                                                            size={
+                                                                                14
+                                                                            }
+                                                                        />{' '}
+                                                                        Thêm
+                                                                        biên bản
+                                                                    </button>
+                                                                )
+                                                            ) : null}
+
+                                                            {session.status.includes(
+                                                                'cancelled',
+                                                            ) && (
+                                                                <button
+                                                                    onClick={(
+                                                                        e,
+                                                                    ) =>
+                                                                        handleViewReason(
+                                                                            e,
+                                                                            session,
+                                                                        )
+                                                                    }
+                                                                    className='flex items-center gap-1 rounded-lg border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition-colors hover:bg-red-100'
+                                                                >
+                                                                    <FileText
+                                                                        size={
+                                                                            14
+                                                                        }
+                                                                    />{' '}
+                                                                    Xem lý do
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Load More */}
+                        {filteredSessions.length > visibleCount && (
+                            <div className='border-t border-gray-100 p-4 text-center'>
+                                <button
+                                    onClick={handleLoadMore}
+                                    className='text-sm font-semibold text-[#0795DF] hover:underline'
+                                >
+                                    Xem thêm các buổi cũ hơn
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
-
-                {/* Modals */}
             </div>
-            <FeedbackModal
-                isOpen={feedbackModalOpen}
-                onClose={() => setFeedbackModalOpen(false)}
+
+            {/* --- MODALS --- */}
+
+            {/* 1. Modal Chi tiết Session */}
+            <SessionDetailModal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
                 session={selectedSession}
             />
+
+            {/* 2. Modal Xem lý do hủy */}
             <CancellationReasonModal
-                isOpen={reasonModalOpen}
-                onClose={() => setReasonModalOpen(false)}
+                isOpen={isReasonModalOpen}
+                onClose={() => setIsReasonModalOpen(false)}
                 session={selectedSession}
             />
-            {/* Bỏ SendingFeedbackModal */}
+
+            {/* 3. Modal Thêm biên bản/Tiến độ */}
+            <AddProgressModal
+                isOpen={isAddProgressModalOpen}
+                onClose={() => {
+                    setIsAddProgressModalOpen(false);
+                    setSelectedSession(null); // Reset session khi đóng
+                }}
+                preSelectedSessionId={selectedSession?.id} // <--- KEY FIX: Truyền ID vào đây
+                onSuccess={fetchData} // <--- KEY FIX: Gọi hàm reload lại dữ liệu sau khi save
+            />
         </>
     );
 };
 
-export default StudyHistory;
+export default TutorStudyHistory;

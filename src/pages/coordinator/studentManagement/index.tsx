@@ -1,41 +1,44 @@
 import Sidebar from '@/components/layouts/Sidebar';
-import { useState } from 'react';
-import type { Student } from '@/interfaces/Student'; // Import "luật"
-import { mockStudents } from '@/interfaces/Student'; // Import data
+import { useState, useEffect } from 'react';
+import type { StudentProfile } from '@/interfaces';
+import { storage } from '@/utils/storage';
 
-// Import 2 component con
 import StudentListView from '@/components/UI/coordinator/StudentListView';
 import StudentDetailView from '@/components/UI/coordinator/StudentDetailView';
 
 const StudentManagement = () => {
-    // State để chuyển đổi giữa 2 chế độ xem
     const [view, setView] = useState<'list' | 'detail'>('list');
-    // State để lưu SV được chọn khi xem chi tiết
-    const [selectedStudent, setSelectedStudent] = useState<Student | null>(
-        null,
-    );
+    const [selectedStudent, setSelectedStudent] =
+        useState<StudentProfile | null>(null);
+    const [students, setStudents] = useState<StudentProfile[]>([]);
 
-    // Hàm xử lý khi nhấp vào một sinh viên
-    const handleViewDetails = (student: Student) => {
+    // Load data từ storage (Fixed: wrap in setTimeout to avoid synchronous setState warning)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            const data = storage.getAllStudents();
+            setStudents(data);
+        }, 0);
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleViewDetails = (student: StudentProfile) => {
         setSelectedStudent(student);
         setView('detail');
     };
 
-    // Hàm xử lý khi nhấp nút "Quay lại"
     const handleBackToList = () => {
         setView('list');
         setSelectedStudent(null);
     };
 
-    // Render component chính
     return (
         <>
             <Sidebar />
             <div className='ml-[80px] min-h-screen bg-blue-50 p-3 pt-4 sm:p-4 md:ml-[260px] md:p-6'>
-                {/* Dựa vào state 'view' để hiển thị component con phù hợp */}
                 {view === 'list' ? (
                     <StudentListView
-                        students={mockStudents}
+                        students={students}
                         onViewDetails={handleViewDetails}
                     />
                 ) : (
