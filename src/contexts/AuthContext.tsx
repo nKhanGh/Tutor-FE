@@ -72,7 +72,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 };
 
-// Dòng này giúp bỏ qua lỗi ESLint vì useAuth đi kèm AuthProvider là hợp lý
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     const context = useContext(AuthContext);

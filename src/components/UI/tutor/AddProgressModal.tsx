@@ -49,7 +49,6 @@ const AddProgressModal = ({
                     .filter((s) => {
                         const isCompleted = s.status === 'completed';
                         const noNote = !s.progressNote;
-                        // <--- 2. THÊM LOGIC LỌC DƯỚI ĐÂY --->
                         const matchesPeriod = teachingPeriodId
                             ? s.teachingPeriodId === teachingPeriodId
                             : true;

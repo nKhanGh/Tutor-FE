@@ -1,10 +1,8 @@
-// src/interfaces/booking.ts
-
 // --- AVAILABILITY ---
 export interface AvailabilitySlot {
     id: string;
     tutorId: string;
-    teachingPeriodId?: string; // available slots dont have this
+    teachingPeriodId?: string;
     date: string;
     startTime: string;
     endTime: string;

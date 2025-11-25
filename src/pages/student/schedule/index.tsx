@@ -32,9 +32,7 @@ const Schedule = () => {
     const { showSuccessNotification, showErrorNotification } =
         useNotification();
 
-    // --- STATE DỮ LIỆU ---
     const [sessions, setSessions] = useState<Session[]>([]);
-    // Thêm state để lưu các slot đang chờ duyệt
     const [pendingSlots, setPendingSlots] = useState<AvailabilitySlot[]>([]);
 
     const [activeTab, setActiveTab] = useState<'upcoming' | 'pending'>(
@@ -42,14 +40,12 @@ const Schedule = () => {
     );
     const [searchQuery, setSearchQuery] = useState('');
 
-    // --- STATE MODAL ---
     const [bookingModalOpen, setBookingModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedSession, setSelectedSession] = useState<Session | null>(
         null,
     );
 
-    // --- STATE CHO BOOKING FORM ---
     const [tutors, setTutors] = useState<TutorProfile[]>([]);
     const [selectedTutorId, setSelectedTutorId] = useState<string>('');
     const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>(
@@ -60,24 +56,22 @@ const Schedule = () => {
     const [currentTeachingPeriod, setCurrentTeachingPeriod] =
         useState<TeachingPeriod | null>(null);
 
-    // 1. Load Sessions & Pending Slots của Student
+    // Load Sessions & Pending Slots của Student
     const fetchSessions = useCallback(() => {
         if (!user) return;
 
         setTimeout(() => {
-            // A. Lấy các buổi học chính thức (Upcoming / Completed)
+            // Lấy các buổi học chính thức (Upcoming / Completed)
             const mySessions = storage.getSessionsForStudent(user.id);
 
-            // B. Lấy các Slot đang chờ duyệt (Pending Slots) từ bảng SLOTS
+            // Lấy các Slot đang chờ duyệt (Pending Slots) từ bảng SLOTS
             const allSlots = storage.getSlots();
             const myPendingSlots = allSlots.filter(
                 (s) =>
                     s.bookedByStudentId === user.id && s.status === 'pending',
             );
 
-            // --- SẮP XẾP TĂNG DẦN (Cũ nhất/Sắp tới gần nhất lên đầu) ---
-
-            // 1. Sắp xếp Session
+            // Sắp xếp Session
             mySessions.sort((a, b) => {
                 const dateA = new Date(a.date).getTime();
                 const dateB = new Date(b.date).getTime();
@@ -93,7 +87,7 @@ const Schedule = () => {
                 return startTimeA.localeCompare(startTimeB);
             });
 
-            // 2. Sắp xếp Pending Slots
+            // Sắp xếp Pending Slots
             myPendingSlots.sort((a, b) => {
                 const dateA = new Date(a.date).getTime();
                 const dateB = new Date(b.date).getTime();
@@ -116,7 +110,7 @@ const Schedule = () => {
         fetchSessions();
     }, [fetchSessions]);
 
-    // 2. Load danh sách Tutor khi mở modal booking
+    // Load danh sách Tutor khi mở modal booking
     useEffect(() => {
         if (bookingModalOpen) {
             setTimeout(() => {
@@ -126,7 +120,6 @@ const Schedule = () => {
         }
     }, [bookingModalOpen]);
 
-    // --- HANDLERS ---
     const handleSessionClick = (session: Session) => {
         setSelectedSession(session);
         setIsDetailModalOpen(true);
@@ -236,12 +229,10 @@ const Schedule = () => {
             locationOrLink: 'Chờ cập nhật',
             canFeedback: false,
             canViewReason: false,
-            // --- BỔ SUNG DÒNG NÀY ---
             attachedDocumentIds: slot.attachedDocumentIds,
         };
     });
 
-    // Gộp 2 danh sách lại
     const allDisplayItems = [...sessions, ...mappedPendingSessions];
 
     const filteredSessions = allDisplayItems.filter((session) => {

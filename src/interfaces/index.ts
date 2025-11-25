@@ -1,5 +1,3 @@
-// src/interfaces/index.ts
-
 export * from './user';
 export * from './booking';
 export * from './library';

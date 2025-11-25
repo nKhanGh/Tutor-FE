@@ -21,7 +21,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { storage } from '@/utils/storage';
 import { useNotification } from '@/hooks/useNotification';
-import { getUserInitials } from '@/utils/helpers'; // Import helper xử lý tên
+import { getUserInitials } from '@/utils/helpers';
 import type {
     AvailabilitySlot,
     Session,
@@ -69,31 +69,29 @@ const Overview = () => {
     const fetchData = useCallback(() => {
         if (!user) return;
 
-        // FIX LỖI 1: Sử dụng setTimeout để tránh "Calling setState synchronously within an effect"
-        // Đẩy việc update state sang event loop tiếp theo
         setTimeout(() => {
-            // 1. Lấy dữ liệu từ storage
+            // Lấy dữ liệu từ storage
             const allSlots = storage.getSlotsByTutor(user.id);
             const allSessions = storage.getSessionsForTutor(user.id);
             const activePeriods = storage.getActiveTeachingPeriods(user.id);
 
-            // 2. Filter Pending Slots
+            // Filter Pending Slots
             const pending = allSlots.filter((s) => s.status === 'pending');
 
-            // 3. Filter Upcoming Sessions
+            // Filter Upcoming Sessions
             const upcoming = allSessions
                 .filter(
                     (s) => s.status === 'upcoming' || s.status === 'pending',
                 )
                 .sort((a, b) => {
-                    // 1. So sánh ngày trước
+                    // So sánh ngày trước
                     const dateA = new Date(a.date).getTime();
                     const dateB = new Date(b.date).getTime();
                     if (dateA !== dateB) {
                         return dateA - dateB;
                     }
 
-                    // 2. Nếu cùng ngày, so sánh giờ bắt đầu (format "HH:MM - HH:MM")
+                    // Nếu cùng ngày, so sánh giờ bắt đầu (format "HH:MM - HH:MM")
                     // Chuỗi time luôn được format chuẩn HH:MM nên so sánh chuỗi là chính xác
                     const startTimeA = a.time.split(' - ')[0] || '';
                     const startTimeB = b.time.split(' - ')[0] || '';
@@ -101,7 +99,7 @@ const Overview = () => {
                     return startTimeA.localeCompare(startTimeB);
                 });
 
-            // 4. Tính Rating
+            // Tính Rating
             const ratedSessions = allSessions.filter((s) => s.review);
             const totalRating = ratedSessions.reduce(
                 (sum, s) => sum + (s.review?.rating || 0),
@@ -114,7 +112,7 @@ const Overview = () => {
                       )
                     : 0;
 
-            // 5. Update State
+            // Update State
             setPendingSlots(pending);
             setUpcomingSessions(upcoming);
             setActiveStudents(activePeriods);
@@ -257,7 +255,6 @@ const Overview = () => {
                             <h3 className='text-lg font-bold text-gray-800'>
                                 Lịch hẹn sắp tới
                             </h3>
-                            {/* Đã xóa nút "Xem lịch sử" ở đây theo yêu cầu */}
                         </div>
 
                         <div className='space-y-4'>
@@ -368,7 +365,6 @@ const Overview = () => {
                             ) : (
                                 <>
                                     {displayedPendingSlots.map((slot) => {
-                                        // FIX LOGIC AVATAR: Lấy thông tin student từ ID để check avatar/bg
                                         const studentInfo = storage.getUserById(
                                             slot.bookedByStudentId || '',
                                         );
@@ -535,7 +531,6 @@ const Overview = () => {
                             ) : (
                                 <div className='space-y-4'>
                                     {activeStudents.map((period) => {
-                                        // FIX LOGIC AVATAR: Tương tự như phần Pending
                                         const studentInfo = storage.getUserById(
                                             period.studentId,
                                         );

@@ -13,7 +13,7 @@ import { NavLink } from 'react-router-dom';
 import type { IconDefinition } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useAuth } from '@/contexts/AuthContext';
-import { getUserInitials } from '@/utils/helpers'; // Import helper
+import { getUserInitials } from '@/utils/helpers';
 
 interface SidebarItem {
     icon: IconDefinition;

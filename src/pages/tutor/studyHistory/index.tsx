@@ -42,7 +42,6 @@ const TutorStudyHistory = () => {
 
     // --- Fetch Data Function (Tách ra để tái sử dụng) ---
     const fetchData = useCallback(() => {
-        // Sử dụng setTimeout để tránh lỗi "setState synchronously within an effect"
         setTimeout(() => {
             if (user) {
                 // Lấy tất cả session của Tutor
@@ -447,8 +446,8 @@ const TutorStudyHistory = () => {
                     setIsAddProgressModalOpen(false);
                     setSelectedSession(null); // Reset session khi đóng
                 }}
-                preSelectedSessionId={selectedSession?.id} // <--- KEY FIX: Truyền ID vào đây
-                onSuccess={fetchData} // <--- KEY FIX: Gọi hàm reload lại dữ liệu sau khi save
+                preSelectedSessionId={selectedSession?.id}
+                onSuccess={fetchData}
             />
         </>
     );

@@ -1,4 +1,3 @@
-// === FILE: src/pages/tutor/studentProgress/index.tsx ===
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/layouts/Sidebar';
 import AddProgressModal from '@/components/UI/tutor/AddProgressModal';
@@ -12,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { storage } from '@/utils/storage';
-import { getUserInitials } from '@/utils/helpers'; // Import helper
+import { getUserInitials } from '@/utils/helpers';
 import type { Session, TeachingPeriod } from '@/interfaces';
 
 // Interface UI hiển thị cho 1 thẻ (Card)
@@ -33,7 +32,6 @@ interface TeachingPeriodUI {
     endDate?: string;
 }
 
-// --- 1. Component StudentList ---
 interface StudentListProps {
     periods: TeachingPeriodUI[];
     onSelectPeriod: (id: string) => void;
@@ -133,7 +131,6 @@ const StudentList: React.FC<StudentListProps> = ({
                                     : 'Done'}
                             </div>
 
-                            {/* --- SỬA LOGIC AVATAR --- */}
                             <div
                                 className={`mx-auto mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-gray-100 text-2xl font-bold text-white shadow-sm ${period.avatar ? '' : period.avatarBg}`}
                             >
@@ -208,7 +205,6 @@ const StudentList: React.FC<StudentListProps> = ({
     );
 };
 
-// --- 2. Component StudentDetail ---
 interface StudentDetailProps {
     period: TeachingPeriodUI | undefined;
     sessions: Session[];
@@ -260,7 +256,6 @@ const StudentDetail: React.FC<StudentDetailProps> = ({
         <div className='grid grid-cols-1 gap-8 lg:grid-cols-3'>
             {/* Left: Info Card */}
             <div className='h-fit rounded-xl border border-gray-100 bg-white p-6 shadow-sm'>
-                {/* --- SỬA LOGIC AVATAR --- */}
                 <div
                     className={`mx-auto mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white text-4xl font-bold text-white shadow-sm ${period?.avatar ? '' : period?.avatarBg || 'bg-gray-300'}`}
                 >
@@ -388,11 +383,9 @@ const StudentProgressPage = () => {
 
     // 1. Load danh sách Kỳ dạy (Periods)
     useEffect(() => {
-        // SỬA LỖI 1: Dùng setTimeout để tránh cập nhật state đồng bộ trong useEffect
         const timer = setTimeout(() => {
             if (!user) return;
 
-            // SỬA LỖI 3: Key localStorage đúng là 'tutor_app_teaching_periods'
             const allPeriodsStr = localStorage.getItem(
                 'tutor_app_teaching_periods',
             );
@@ -459,7 +452,7 @@ const StudentProgressPage = () => {
                 if (selectedPeriod) {
                     const all = storage.getSessionsForTutor(user.id);
                     const history = all.filter((s) => {
-                        // Điều kiện 1: Phải có teachingPeriodId trùng khớp
+                        // Điều kiện: Phải có teachingPeriodId trùng khớp
                         const isMatchingPeriod =
                             s.teachingPeriodId === selectedPeriod.id;
 

@@ -18,11 +18,9 @@ import {
 import { FileDown, Calendar, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { storage } from '@/utils/storage';
-// Import thư viện xuất PDF
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-// --- ĐỊNH NGHĨA TYPE ---
 interface BarChartData {
     name: string;
     sessions: number;
@@ -43,13 +41,12 @@ interface LineChartData {
 }
 
 interface CancellationData {
-    name: string; // Tên môn
-    rate: number; // Tỷ lệ %
-    cancelled: number; // Số buổi hủy của môn này
-    total: number; // Tổng số buổi của môn này
+    name: string;
+    rate: number;
+    cancelled: number;
+    total: number;
     [key: string]: string | number;
 }
-// ------------------------------
 
 // --- HÀM HELPER TẠO MÀU ĐỘNG ---
 const generateColors = (count: number) => {
@@ -324,7 +321,6 @@ const Statistic = () => {
     return (
         <>
             <Sidebar />
-            {/* Thêm ID vào đây để html2canvas chụp lại toàn bộ vùng này */}
             <div
                 id='report-content'
                 className='ml-[80px] min-h-screen bg-[#f4f7fc] p-6 font-bevietnam transition-all duration-300 md:ml-[260px]'
@@ -351,11 +347,6 @@ const Statistic = () => {
                         className='flex items-center gap-3'
                         data-html2canvas-ignore='true'
                     >
-                        {/* data-html2canvas-ignore="true" giúp ẩn các nút khi xuất file PDF nếu muốn, 
-                            nhưng ở đây ta để lại để biết context. 
-                            Nếu muốn ẩn nút khi in, bỏ class này ra khỏi div chứa button hoặc dùng css.
-                        */}
-
                         {/* Year Selector */}
                         <div className='relative'>
                             <Calendar

@@ -7,16 +7,16 @@ import {
     MapPin,
     Video,
     ChevronRight,
-    ChevronDown, // Import thêm icon
-    ChevronUp, // Import thêm icon
-    Info, // Import thêm icon
+    ChevronDown,
+    ChevronUp,
+    Info,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { storage } from '@/utils/storage';
-import type { Session, TutorProfile, TeachingPeriod } from '@/interfaces'; // Import TeachingPeriod
+import type { Session, TutorProfile, TeachingPeriod } from '@/interfaces';
 import { Link } from 'react-router-dom';
-import SessionDetailModal from '@/components/UI/tutor/SessionDetailModal'; // Import Modal chi tiết
+import SessionDetailModal from '@/components/UI/tutor/SessionDetailModal';
 import { getUserInitials } from '@/utils/helpers';
 
 const StudentOverview = () => {
@@ -32,7 +32,6 @@ const StudentOverview = () => {
         [],
     );
 
-    // --- STATE MỚI ---
     const [showAllUpcoming, setShowAllUpcoming] = useState(false); // State toggle xem thêm
     const [selectedSession, setSelectedSession] = useState<Session | null>(
         null,
@@ -42,10 +41,9 @@ const StudentOverview = () => {
     useEffect(() => {
         const timer = setTimeout(() => {
             if (user) {
-                // 1. Lấy dữ liệu Sessions
+                // Lấy dữ liệu Sessions
                 const allSessions = storage.getSessionsForStudent(user.id);
 
-                // --- LOGIC MỚI: Tính số khóa học (Teaching Period) hoàn thành ---
                 const allPeriodsStr = localStorage.getItem(
                     'tutor_app_teaching_periods',
                 );
@@ -55,7 +53,6 @@ const StudentOverview = () => {
                 const completedCoursesCount = allPeriods.filter(
                     (p) => p.studentId === user.id && p.status === 'finished',
                 ).length;
-                // --------------------------------------------------------------
 
                 // Đếm số tutor duy nhất
                 const uniqueTutors = new Set(allSessions.map((s) => s.tutorId))
@@ -67,7 +64,7 @@ const StudentOverview = () => {
                     return m === currentMonth;
                 }).length;
 
-                // 3. Lọc Upcoming Sessions
+                // Lọc Upcoming Sessions
                 const upcoming = allSessions
                     .filter(
                         (s) =>
@@ -83,7 +80,7 @@ const StudentOverview = () => {
 
                 setUpcomingSessions(upcoming);
                 setStats({
-                    completed: completedCoursesCount, // Cập nhật giá trị này
+                    completed: completedCoursesCount,
                     tutors: uniqueTutors,
                     monthSessions,
                     upcoming: upcoming.length,
@@ -94,7 +91,6 @@ const StudentOverview = () => {
         return () => clearTimeout(timer);
     }, [user]);
 
-    // --- HANDLER MỚI ---
     const handleViewDetail = (session: Session) => {
         setSelectedSession(session);
         setIsDetailModalOpen(true);
@@ -143,7 +139,6 @@ const StudentOverview = () => {
                             </div>
                         </div>
 
-                        {/* Card 2, 3, 4 giữ nguyên code cũ... */}
                         <div className='rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-transform hover:-translate-y-1'>
                             <div className='flex items-center gap-4'>
                                 <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600'>
@@ -237,7 +232,6 @@ const StudentOverview = () => {
                                                         <h3 className='font-bold text-gray-800 transition-colors group-hover:text-[#0795DF]'>
                                                             {session.title}
                                                         </h3>
-                                                        {/* Đã xóa badge trạng thái ở đây */}
                                                     </div>
                                                     <p className='mt-1 text-sm text-gray-500'>
                                                         với {session.tutorName}
@@ -256,7 +250,6 @@ const StudentOverview = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* Nút Xem chi tiết thay cho Badge */}
                                                 <div className='ml-0 mt-3 md:ml-4 md:mt-0'>
                                                     <button
                                                         onClick={() =>
@@ -306,7 +299,7 @@ const StudentOverview = () => {
                             </div>
                         </div>
 
-                        {/* Right Column giữ nguyên code cũ... */}
+                        {/* Right Column */}
                         <div className='rounded-2xl bg-gradient-to-br from-[#0795DF] to-[#00C0EF] p-6 text-white shadow-lg'>
                             <h2 className='mb-2 text-xl font-bold'>
                                 Gợi ý Tutor AI
@@ -368,7 +361,6 @@ const StudentOverview = () => {
                 </div>
             </div>
 
-            {/* THÊM MODAL VÀO CUỐI */}
             <SessionDetailModal
                 isOpen={isDetailModalOpen}
                 onClose={() => setIsDetailModalOpen(false)}

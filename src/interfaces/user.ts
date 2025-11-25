@@ -1,5 +1,3 @@
-// src/interfaces/user.ts
-
 // --- USER TYPES ---
 export interface User {
     id: string;

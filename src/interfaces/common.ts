@@ -1,4 +1,3 @@
-// src/interfaces/common.ts
 import { type LucideIcon } from 'lucide-react';
 
 export interface TutorStat {

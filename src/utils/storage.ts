@@ -1,4 +1,6 @@
-// src/utils/storage.ts
+/**
+ * Giả lập Database bằng localStorage.
+ */
 import type {
     User,
     AvailabilitySlot,
@@ -221,7 +223,6 @@ const generateRandomTimeSlot = () => {
     };
 };
 
-// --- 1. SEED USERS ---
 const SEED_USERS: (User | TutorProfile | StudentProfile)[] = [
     // --- TUTORS ---
     {
@@ -433,7 +434,7 @@ const SEED_DOCUMENTS: Document[] = [
         rating: 4.5,
         fileInfo: 'PDF • 2.4MB',
         isSaved: false,
-        sharedBy: 's3', // ID của Nguyễn Hữu Khang (User demo)
+        sharedBy: 's3', // ID của Nguyễn Hữu Khang
         uploadedAt: '20/10/2025',
     },
     {
@@ -452,7 +453,6 @@ const SEED_DOCUMENTS: Document[] = [
     },
 ];
 
-// --- 5. SEED REGISTRATIONS ---
 const SEED_REGISTRATIONS: ProgramRegistration[] = [
     {
         id: '#TM2025002',
@@ -497,7 +497,6 @@ const SEED_REGISTRATIONS: ProgramRegistration[] = [
     },
 ];
 
-// --- 2. GENERATE TEACHING PERIODS (PHASE 1) - FIXED LOGIC ---
 const generateRandomTeachingPeriods = (): TeachingPeriod[] => {
     const periods: TeachingPeriod[] = [];
     const tutors = SEED_USERS.filter(
@@ -566,8 +565,6 @@ const generateRandomTeachingPeriods = (): TeachingPeriod[] => {
     return periods;
 };
 
-// --- 3. GENERATE SESSIONS (PHASE 2) - NO OVERLAP ---
-// Biến toàn cục (trong scope hàm) để track lịch trình tránh trùng lặp
 const generateSessionsFromPeriods = (
     periods: TeachingPeriod[],
 ): {
@@ -733,7 +730,6 @@ const generateSessionsFromPeriods = (
     return { sessions, scheduleTracker };
 };
 
-// --- 4. GENERATE SLOTS (PHASE 3) - CHECK OVERLAP ---
 const generateSlotsFromActivePeriods = (
     activePeriods: TeachingPeriod[],
     existingSchedule: Record<string, { start: number; end: number }[]>,
@@ -846,7 +842,6 @@ const generateSlotsFromActivePeriods = (
     return slots;
 };
 
-// --- HELPER MỚI: Tạo Slot booked từ các Session sắp tới ---
 const generateBookedSlotsFromSessions = (
     sessions: Session[],
 ): AvailabilitySlot[] => {
@@ -1145,7 +1140,6 @@ export const storage = {
                 canFeedback: false,
                 canViewReason: false,
                 review: undefined,
-                // --- BỔ SUNG DÒNG NÀY: Copy tài liệu từ Slot sang Session ---
                 attachedDocumentIds: slots[idx].attachedDocumentIds || [],
             };
 

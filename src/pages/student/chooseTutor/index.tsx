@@ -64,14 +64,9 @@ const ChooseTutor: React.FC = () => {
 
                 // 2. Nếu đang bật AI, tính toán matchPercentage và sort
                 if (showAI) {
-                    // Sử dụng hàm getRecommendedTutors nhưng lấy FULL danh sách (cần sửa nhẹ logic hoặc gọi hàm tính score thủ công ở đây nếu muốn list dài)
-                    // Tuy nhiên để đơn giản và tận dụng hàm có sẵn, ta sẽ map lại:
                     const reg = storage.getRegistrationByStudentId(user.id);
                     if (reg) {
                         // Tính điểm lại cho toàn bộ list (vì getRecommendedTutors chỉ trả về top 3)
-                        // Ta copy logic tính điểm từ storage ra hoặc cập nhật storage để public hàm calculateMatchScore (nhưng ở đây ta tự xử lý mảng được)
-
-                        // Cách đơn giản: Gọi getRecommendedTutors để lấy top, những người còn lại random thấp hơn
                         const topPicks = storage.getRecommendedTutors(user.id);
 
                         allTutors = allTutors

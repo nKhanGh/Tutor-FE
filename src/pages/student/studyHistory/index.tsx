@@ -24,16 +24,13 @@ const StudyHistory = () => {
     const { user } = useAuth();
     const { showSuccessNotification } = useNotification();
 
-    // --- State ---
     const [sessions, setSessions] = useState<Session[]>([]);
     const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
 
-    // Filter states
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [visibleCount, setVisibleCount] = useState<number>(10);
 
-    // Modal states
     const [selectedSession, setSelectedSession] = useState<Session | null>(
         null,
     );
@@ -80,7 +77,7 @@ const StudyHistory = () => {
         const timer = setTimeout(() => {
             let result = sessions;
 
-            // 1. Filter by Status
+            // Filter by Status
             if (filterStatus !== 'all') {
                 if (filterStatus === 'completed') {
                     result = result.filter((s) => s.status === 'completed');
@@ -91,7 +88,7 @@ const StudyHistory = () => {
                 }
             }
 
-            // 2. Filter by Search (Subject or Tutor Name)
+            // Filter by Search (Subject or Tutor Name)
             if (searchQuery.trim()) {
                 const lowerQuery = searchQuery.toLowerCase();
                 result = result.filter(
@@ -107,8 +104,6 @@ const StudyHistory = () => {
 
         return () => clearTimeout(timer);
     }, [sessions, filterStatus, searchQuery]);
-
-    // --- Handlers ---
 
     const handleLoadMore = () => {
         setVisibleCount((prev) => prev + 10);
@@ -159,7 +154,6 @@ const StudyHistory = () => {
         );
 
         // Lưu vào storage (giả lập update)
-        // Lưu ý: Trong thực tế cần gọi API update session
         const allSessions = storage.getSessions();
         const idx = allSessions.findIndex((s) => s.id === id);
         if (idx !== -1) {

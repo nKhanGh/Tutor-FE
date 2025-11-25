@@ -17,7 +17,6 @@ const AvailabilityManagement = () => {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-    // State cho Modal chi tiết
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(
         null,
@@ -85,17 +84,12 @@ const AvailabilityManagement = () => {
 
     // Xử lý click vào slot
     const handleSlotClick = (slot: AvailabilitySlot) => {
-        // Nếu slot đã booked -> Logic cũ (Hủy) hoặc mở detail để xem ai book
-        // Nếu slot available -> Mở detail để xem hoặc xóa
-        // Để thống nhất, ta mở Modal Detail cho mọi trường hợp
         setSelectedSlot(slot);
         setIsDetailModalOpen(true);
     };
 
     const handleDeleteFromDetail = (slot: AvailabilitySlot) => {
-        // Đóng detail modal trước
         setIsDetailModalOpen(false);
-        // Gọi logic xóa cũ
         initiateDelete(slot);
     };
 
@@ -185,7 +179,6 @@ const AvailabilityManagement = () => {
 
     const initiateDelete = (slot: AvailabilitySlot) => {
         setSlotToDelete(slot);
-        // Logic xóa giữ nguyên như cũ...
         if (slot.type === 'group') {
             if (
                 window.confirm(
@@ -316,7 +309,6 @@ const AvailabilityManagement = () => {
                                             return (
                                                 <div
                                                     key={slot.id}
-                                                    // Thay đổi logic click: Mở modal chi tiết thay vì xóa ngay
                                                     onClick={() =>
                                                         handleSlotClick(slot)
                                                     }
@@ -402,7 +394,6 @@ const AvailabilityManagement = () => {
                 onConfirm={handleConfirmCancelBooked}
             />
 
-            {/* MODAL CHI TIẾT SLOT MỚI */}
             <SlotDetailModal
                 isOpen={isDetailModalOpen}
                 onClose={() => setIsDetailModalOpen(false)}
