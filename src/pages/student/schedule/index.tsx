@@ -16,13 +16,14 @@ import {
     AlertCircle,
     Link as LinkIcon,
     Info,
+    CheckCircle,
+    // Circle,
 } from 'lucide-react';
 
 import {
     type Session,
     type AvailabilitySlot,
     type TutorProfile,
-    type TeachingPeriod,
 } from '@/interfaces';
 
 import SessionDetailModal from '@/components/UI/tutor/SessionDetailModal';
@@ -35,6 +36,7 @@ const Schedule = () => {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [pendingSlots, setPendingSlots] = useState<AvailabilitySlot[]>([]);
 
+    // Quay lại tab Pending
     const [activeTab, setActiveTab] = useState<'upcoming' | 'pending'>(
         'upcoming',
     );
@@ -52,52 +54,40 @@ const Schedule = () => {
         [],
     );
     const [bookingReason, setBookingReason] = useState<string>('');
-    const [bookingSubject, setBookingSubject] = useState<string>('');
-    const [currentTeachingPeriod, setCurrentTeachingPeriod] =
-        useState<TeachingPeriod | null>(null);
 
-    // Load Sessions & Pending Slots của Student
+    // State chọn môn (String)
+    const [bookingSubject, setBookingSubject] = useState<string>('');
+    const [registeredSubjects, setRegisteredSubjects] = useState<string[]>([]);
+    const [customSubject, setCustomSubject] = useState<string>('');
+
+    // Load Data
     const fetchSessions = useCallback(() => {
         if (!user) return;
 
         setTimeout(() => {
-            // Lấy các buổi học chính thức (Upcoming / Completed)
+            // Lấy Sessions (Đã duyệt/Hoàn thành)
             const mySessions = storage.getSessionsForStudent(user.id);
 
-            // Lấy các Slot đang chờ duyệt (Pending Slots) từ bảng SLOTS
+            // Lấy Slots Pending (Chưa duyệt)
             const allSlots = storage.getSlots();
             const myPendingSlots = allSlots.filter(
                 (s) =>
                     s.bookedByStudentId === user.id && s.status === 'pending',
             );
 
-            // Sắp xếp Session
+            // Sort logic
             mySessions.sort((a, b) => {
                 const dateA = new Date(a.date).getTime();
                 const dateB = new Date(b.date).getTime();
-
-                // So sánh ngày trước
-                if (dateA !== dateB) {
-                    return dateA - dateB; // Tăng dần: a - b
-                }
-
-                // Nếu cùng ngày, so sánh giờ bắt đầu (Format HH:MM - HH:MM)
-                const startTimeA = a.time.split(' - ')[0];
-                const startTimeB = b.time.split(' - ')[0];
-                return startTimeA.localeCompare(startTimeB);
+                if (dateA !== dateB) return dateA - dateB;
+                return a.time.localeCompare(b.time);
             });
 
-            // Sắp xếp Pending Slots
+            // Sort Pending
             myPendingSlots.sort((a, b) => {
                 const dateA = new Date(a.date).getTime();
                 const dateB = new Date(b.date).getTime();
-
-                // So sánh ngày trước
-                if (dateA !== dateB) {
-                    return dateA - dateB; // Tăng dần: a - b
-                }
-
-                // Nếu cùng ngày, so sánh giờ bắt đầu (Format HH:MM)
+                if (dateA !== dateB) return dateA - dateB;
                 return a.startTime.localeCompare(b.startTime);
             });
 
@@ -110,12 +100,11 @@ const Schedule = () => {
         fetchSessions();
     }, [fetchSessions]);
 
-    // Load danh sách Tutor khi mở modal booking
+    // Load Tutors
     useEffect(() => {
         if (bookingModalOpen) {
             setTimeout(() => {
-                const allTutors = storage.getAllTutors();
-                setTutors(allTutors);
+                setTutors(storage.getAllTutors());
             }, 0);
         }
     }, [bookingModalOpen]);
@@ -128,10 +117,12 @@ const Schedule = () => {
     const handleTutorChange = (tutorId: string) => {
         setSelectedTutorId(tutorId);
         setAvailableSlots([]);
-        setCurrentTeachingPeriod(null);
         setBookingSubject('');
+        setRegisteredSubjects([]);
+        setCustomSubject('');
 
         if (tutorId && user) {
+            // 1. Load Slot rảnh
             const allSlots = storage.getSlotsByTutor(tutorId);
             const slots = allSlots
                 .filter((s) => s.status === 'available')
@@ -139,30 +130,19 @@ const Schedule = () => {
                     (a, b) =>
                         new Date(a.date).getTime() - new Date(b.date).getTime(),
                 );
-
             setAvailableSlots(slots);
 
+            // 2. Load các môn đã đăng ký (List để chọn)
             try {
-                const allPeriodsStr = localStorage.getItem(
-                    'tutor_app_teaching_periods',
+                const periods = storage.getTeachingActivePeriodsForStudent(
+                    user.id,
                 );
-                if (allPeriodsStr) {
-                    const allPeriods: TeachingPeriod[] =
-                        JSON.parse(allPeriodsStr);
-                    const foundPeriod = allPeriods.find(
-                        (p) =>
-                            p.studentId === user.id &&
-                            p.tutorId === tutorId &&
-                            p.status === 'active',
-                    );
-
-                    if (foundPeriod) {
-                        setCurrentTeachingPeriod(foundPeriod);
-                        setBookingSubject(foundPeriod.subject);
-                    }
-                }
+                const subjectsWithThisTutor = periods
+                    .filter((p) => p.tutorId === tutorId)
+                    .map((p) => p.subject);
+                setRegisteredSubjects(subjectsWithThisTutor);
             } catch (error) {
-                console.error('Error finding teaching period', error);
+                console.error(error);
             }
         }
     };
@@ -170,50 +150,65 @@ const Schedule = () => {
     const handleBookSlot = (slot: AvailabilitySlot) => {
         if (!user) return;
 
-        if (!bookingSubject.trim()) {
-            showErrorNotification('Vui lòng nhập môn học cần tư vấn.');
-            return;
+        let finalSubject = '';
+
+        if (registeredSubjects.length > 0) {
+            if (!bookingSubject) {
+                showErrorNotification('Vui lòng chọn một môn học.');
+                return;
+            }
+            finalSubject = bookingSubject;
+        } else {
+            if (!customSubject.trim()) {
+                showErrorNotification('Vui lòng nhập môn học cần tư vấn.');
+                return;
+            }
+            finalSubject = customSubject;
         }
 
-        const periodIdToUse = currentTeachingPeriod
-            ? currentTeachingPeriod.id
-            : '';
+        const activePeriods = storage.getTeachingActivePeriodsForStudent(
+            user.id,
+        );
+        const relatedPeriod = activePeriods.find(
+            (p) => p.tutorId === selectedTutorId && p.subject === finalSubject,
+        );
+        const periodIdToUse = relatedPeriod ? relatedPeriod.id : '';
 
+        // Gọi hàm bookSlot (Pending)
         const success = storage.bookSlot(
             slot.id,
             user.id,
             user.name,
-            bookingSubject,
+            finalSubject,
             bookingReason,
             periodIdToUse,
         );
 
         if (success) {
             showSuccessNotification(
-                'Đã gửi yêu cầu đặt lịch! Chờ Tutor duyệt.',
+                'Đã gửi yêu cầu! Vui lòng chờ Tutor duyệt.',
             );
 
-            // Cập nhật UI ngay lập tức
+            // Cập nhật UI
             const updatedSlots = availableSlots.filter((s) => s.id !== slot.id);
             setAvailableSlots(updatedSlots);
             setBookingSubject('');
+            setCustomSubject('');
             setBookingReason('');
-            setSelectedTutorId('');
 
-            fetchSessions(); // Reload lại list pending
+            fetchSessions(); // Reload để hiện bên tab Pending
             setBookingModalOpen(false);
+            setActiveTab('pending'); // Chuyển sang tab pending để user thấy luôn
         } else {
             showErrorNotification(
-                'Đặt lịch thất bại. Có thể slot đã bị người khác đặt.',
+                'Đặt lịch thất bại. Slot này vừa bị người khác đặt.',
             );
         }
     };
 
-    // Chuyển đổi Pending Slot thành định dạng Session để hiển thị chung
+    // Mapping Pending Slots -> Sessions giả để hiển thị
     const mappedPendingSessions: Session[] = pendingSlots.map((slot) => {
-        // Cần tìm tên Tutor dựa vào ID
         const tutorInfo = storage.getUserById(slot.tutorId);
-
         return {
             id: slot.id,
             tutorId: slot.tutorId,
@@ -233,15 +228,14 @@ const Schedule = () => {
         };
     });
 
+    // Merge list để filter
     const allDisplayItems = [...sessions, ...mappedPendingSessions];
 
     const filteredSessions = allDisplayItems.filter((session) => {
         let matchTab = false;
         if (activeTab === 'upcoming') {
-            // Tab Sắp tới: Hiện upcoming
             matchTab = session.status === 'upcoming';
         } else {
-            // Tab Chờ duyệt: Hiện pending
             matchTab = session.status === 'pending';
         }
 
@@ -316,7 +310,6 @@ const Schedule = () => {
                     {/* FILTERS & TABS */}
                     <div className='mb-6 rounded-xl border border-gray-100 bg-white p-2 shadow-sm'>
                         <div className='flex flex-col justify-between gap-4 sm:flex-row'>
-                            {/* Tabs */}
                             <div className='flex self-start rounded-lg bg-gray-100 p-1'>
                                 <button
                                     onClick={() => setActiveTab('upcoming')}
@@ -332,7 +325,6 @@ const Schedule = () => {
                                 </button>
                             </div>
 
-                            {/* Search */}
                             <div className='relative'>
                                 <Search
                                     className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400'
@@ -372,7 +364,6 @@ const Schedule = () => {
                                     onClick={() => handleSessionClick(session)}
                                     className='group flex cursor-pointer flex-col items-start gap-5 rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-blue-200 hover:shadow-md sm:flex-row sm:items-center'
                                 >
-                                    {/* Date Box */}
                                     <div
                                         className={`flex h-16 w-16 flex-shrink-0 flex-col items-center justify-center rounded-xl border ${session.status === 'upcoming' ? 'border-blue-100 bg-blue-50 text-blue-600' : 'border-gray-100 bg-gray-50 text-gray-500'}`}
                                     >
@@ -386,8 +377,6 @@ const Schedule = () => {
                                                 'MM'}
                                         </span>
                                     </div>
-
-                                    {/* Content */}
                                     <div className='min-w-0 flex-1'>
                                         <div className='mb-1 flex items-center gap-2'>
                                             <h3 className='truncate text-lg font-bold text-gray-800 transition-colors group-hover:text-[#0795DF]'>
@@ -400,7 +389,6 @@ const Schedule = () => {
                                                 />
                                             )}
                                         </div>
-
                                         <div className='flex flex-wrap items-center gap-4 text-sm text-gray-500'>
                                             <div className='flex items-center gap-1.5'>
                                                 <UserIcon size={14} />
@@ -418,13 +406,9 @@ const Schedule = () => {
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Status Badge */}
                                     <div className='flex-shrink-0 self-start sm:self-center'>
                                         {getStatusBadge(session.status)}
                                     </div>
-
-                                    {/* Button detail */}
                                     <div className='ml-0 mt-3 md:ml-4 md:mt-0'>
                                         <button className='flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-[#0795DF] transition-colors hover:bg-blue-100'>
                                             <Info size={14} /> Chi tiết
@@ -488,16 +472,18 @@ const Schedule = () => {
                                         </select>
                                         {selectedTutorId && (
                                             <div
-                                                className={`mt-2 flex items-center gap-2 text-xs ${currentTeachingPeriod ? 'text-green-600' : 'text-orange-500'}`}
+                                                className={`mt-2 flex items-center gap-2 text-xs ${registeredSubjects.length > 0 ? 'text-green-600' : 'text-orange-500'}`}
                                             >
-                                                {currentTeachingPeriod ? (
+                                                {registeredSubjects.length >
+                                                0 ? (
                                                     <>
                                                         <LinkIcon size={12} />
                                                         <span>
-                                                            Đã ghép cặp:{' '}
+                                                            Đang theo học:{' '}
                                                             {
-                                                                currentTeachingPeriod.subject
-                                                            }
+                                                                registeredSubjects.length
+                                                            }{' '}
+                                                            môn
                                                         </span>
                                                     </>
                                                 ) : (
@@ -507,8 +493,7 @@ const Schedule = () => {
                                                         />
                                                         <span>
                                                             Chưa ghép cặp chính
-                                                            thức (Đặt lịch vãng
-                                                            lai)
+                                                            thức (Vãng lai)
                                                         </span>
                                                     </>
                                                 )}
@@ -520,26 +505,93 @@ const Schedule = () => {
                                         <div className='animate-in slide-in-from-left space-y-5 duration-300'>
                                             <div>
                                                 <label className='mb-2 block text-sm font-bold text-gray-700'>
-                                                    2. Môn học / Chủ đề
+                                                    2. Môn học / Chủ đề (Chọn 1)
                                                 </label>
-                                                <div className='relative'>
-                                                    <Book
-                                                        className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400'
-                                                        size={18}
-                                                    />
-                                                    <input
-                                                        type='text'
-                                                        className='w-full rounded-xl border border-gray-300 p-3 pl-10 outline-none transition-all focus:ring-2 focus:ring-blue-500'
-                                                        placeholder='VD: Giải tích 1, Kỹ năng mềm...'
-                                                        value={bookingSubject}
-                                                        onChange={(e) =>
-                                                            setBookingSubject(
-                                                                e.target.value,
-                                                            )
-                                                        }
-                                                    />
-                                                </div>
+
+                                                {registeredSubjects.length >
+                                                0 ? (
+                                                    // LIST DỌC
+                                                    <div className='flex max-h-[200px] flex-col gap-2 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-2'>
+                                                        {registeredSubjects.map(
+                                                            (subject) => {
+                                                                const isSelected =
+                                                                    bookingSubject ===
+                                                                    subject;
+                                                                return (
+                                                                    <label
+                                                                        key={
+                                                                            subject
+                                                                        }
+                                                                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all hover:bg-white ${
+                                                                            isSelected
+                                                                                ? 'border-blue-500 bg-blue-50 shadow-sm'
+                                                                                : 'border-transparent hover:border-gray-200'
+                                                                        }`}
+                                                                    >
+                                                                        <div
+                                                                            className={`flex h-5 w-5 items-center justify-center rounded-full border ${isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-400 bg-white'}`}
+                                                                        >
+                                                                            {isSelected && (
+                                                                                <CheckCircle
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                />
+                                                                            )}
+                                                                        </div>
+                                                                        <input
+                                                                            type='radio'
+                                                                            name='bookingSubject'
+                                                                            className='hidden'
+                                                                            value={
+                                                                                subject
+                                                                            }
+                                                                            checked={
+                                                                                isSelected
+                                                                            }
+                                                                            onChange={() =>
+                                                                                setBookingSubject(
+                                                                                    subject,
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                        <span
+                                                                            className={`text-sm font-medium ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}
+                                                                        >
+                                                                            {
+                                                                                subject
+                                                                            }
+                                                                        </span>
+                                                                    </label>
+                                                                );
+                                                            },
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    // Nhập tay
+                                                    <div className='relative'>
+                                                        <Book
+                                                            className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400'
+                                                            size={18}
+                                                        />
+                                                        <input
+                                                            type='text'
+                                                            className='w-full rounded-xl border border-gray-300 p-3 pl-10 outline-none transition-all focus:ring-2 focus:ring-blue-500'
+                                                            placeholder='VD: Giải tích 1...'
+                                                            value={
+                                                                customSubject
+                                                            }
+                                                            onChange={(e) =>
+                                                                setCustomSubject(
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
+
                                             <div>
                                                 <label className='mb-2 block text-sm font-bold text-gray-700'>
                                                     3. Ghi chú (Tùy chọn)
@@ -599,9 +651,15 @@ const Schedule = () => {
                                                             handleBookSlot(slot)
                                                         }
                                                         disabled={
-                                                            !bookingSubject
+                                                            !bookingSubject &&
+                                                            !customSubject
                                                         }
-                                                        className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors ${bookingSubject ? 'cursor-pointer bg-blue-600 text-white shadow-md hover:bg-blue-700' : 'cursor-not-allowed bg-gray-200 text-gray-400'}`}
+                                                        className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
+                                                            bookingSubject ||
+                                                            customSubject
+                                                                ? 'cursor-pointer bg-blue-600 text-white shadow-md hover:bg-blue-700'
+                                                                : 'cursor-not-allowed bg-gray-200 text-gray-400'
+                                                        }`}
                                                     >
                                                         Đặt lịch
                                                     </button>
