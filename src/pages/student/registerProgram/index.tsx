@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Edit, AlertCircle } from 'lucide-react';
 import Sidebar from '@/components/layouts/Sidebar';
 import { useNotification } from '@/hooks/useNotification';
 import { useAuth } from '@/contexts/AuthContext';
 import { storage } from '@/utils/storage';
-import { type ProgramRegistration } from '@/interfaces';
+import { type ProgramRegistration, type StudentProfile } from '@/interfaces';
 
 interface FormData {
     subjects: string[];
@@ -26,6 +26,9 @@ interface FormErrors {
 
 const RegisterProgram: React.FC = () => {
     const { user } = useAuth();
+    const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(
+        null,
+    );
     const { showSuccessNotification, showErrorNotification } =
         useNotification();
 
@@ -72,6 +75,10 @@ const RegisterProgram: React.FC = () => {
                         additionalInfo: savedReg.additionalInfo,
                     });
                 }
+                const allStudents = storage.getAllStudents();
+                const profile =
+                    allStudents.find((s) => s.id === user.id) || null;
+                setStudentProfile(profile);
             }
         }, 0);
         return () => clearTimeout(timer);
@@ -171,90 +178,253 @@ const RegisterProgram: React.FC = () => {
         return (
             <>
                 <Sidebar />
-                <div className='ml-[80px] min-h-screen bg-blue-50 p-3 font-bevietnam sm:p-4 md:ml-[260px] md:p-6'>
-                    <div className='mx-auto max-w-5xl'>
-                        <div className='mb-8 flex items-center justify-between'>
-                            <div>
-                                <h1 className='flex items-center gap-2 text-3xl font-bold text-gray-800'>
-                                    <CheckCircle className='text-green-500' />{' '}
-                                    Đã đăng ký thành công
-                                </h1>
-                                <p className='mt-1 text-gray-600'>
-                                    Hồ sơ của bạn đã được ghi nhận vào hệ thống.
-                                </p>
+                <div className='ml-[80px] min-h-screen bg-blue-50 sm:p-4 md:ml-[260px] md:p-6'>
+                    <div className='mx-auto'>
+                        {/* Header */}
+                        <div className='mb-8'>
+                            <h1 className='mb-2 text-3xl font-bold text-gray-800'>
+                                Đăng ký vào hệ thống Tutor!
+                            </h1>
+                            <p className='text-gray-600'>
+                                Bạn đã đăng kí vào hệ thống tutor thành công
+                            </p>
+                        </div>
+
+                        {/* Info Cards */}
+                        <div className='mb-8 grid gap-6 lg:grid-cols-3'>
+                            <div className='rounded-2xl border-l-4 border-blue-400 bg-white p-6 shadow-sm'>
+                                <div className='mb-1 text-sm text-gray-600'>
+                                    Mã Đăng kí
+                                </div>
+                                <div className='text-xl font-bold text-gray-800'>
+                                    {registrationData.id}
+                                </div>
                             </div>
-                            <div className='rounded-lg border border-blue-100 bg-white px-4 py-2 font-bold text-blue-600 shadow-sm'>
-                                {registrationData.id}
+                            <div className='rounded-2xl border-l-4 border-blue-400 bg-white p-6 shadow-sm'>
+                                <div className='mb-1 text-sm text-gray-600'>
+                                    Ngày đăng kí
+                                </div>
+                                <div className='text-xl font-bold text-gray-800'>
+                                    {registrationData.createdAt}
+                                </div>
+                            </div>
+                            <div className='rounded-2xl border-l-4 border-blue-400 bg-white p-6 shadow-sm'>
+                                <div className='mb-1 text-sm text-gray-600'>
+                                    Lĩnh vực
+                                </div>
+                                <div className='text-xl font-bold text-gray-800'>
+                                    {formData.subjects.slice(0, 3).join(', ')}
+                                    {formData.subjects.length > 3 ? '...' : ''}
+                                </div>
                             </div>
                         </div>
 
-                        <div className='overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm'>
-                            <div className='bg-gradient-to-r from-blue-500 to-blue-400 p-6 text-white'>
+                        {/* Student Info */}
+                        <div className='mb-6 overflow-hidden rounded-2xl bg-white shadow-sm'>
+                            <div className='bg-blue-400 px-6 py-4 text-white'>
                                 <h2 className='text-xl font-bold'>
-                                    Thông tin hồ sơ
+                                    Thông tin sinh viên
                                 </h2>
-                                <p className='mt-1 text-sm text-blue-100'>
-                                    Ngày đăng ký: {registrationData.createdAt}
-                                </p>
                             </div>
-                            <div className='grid grid-cols-1 gap-x-12 gap-y-8 p-8 md:grid-cols-2'>
-                                <div>
-                                    <h3 className='mb-1 text-sm font-semibold uppercase text-gray-500'>
-                                        Lĩnh vực cần hỗ trợ
-                                    </h3>
-                                    <div className='flex flex-wrap gap-2'>
-                                        {registrationData.subjects.map((s) => (
-                                            <span
-                                                key={s}
-                                                className='rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700'
-                                            >
-                                                {s}
-                                            </span>
-                                        ))}
+                            <div className='p-6'>
+                                <div className='mb-6 grid grid-cols-2 gap-6 lg:grid-cols-2'>
+                                    <div>
+                                        <div className='mb-1 text-sm font-semibold text-gray-700'>
+                                            Mã số sinh viên
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {studentProfile?.mssv}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className='mb-1 text-sm font-semibold text-gray-700'>
+                                            Họ và tên
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {studentProfile?.name}
+                                        </div>
+                                    </div>
+                                    <div className='lg:hidden'>
+                                        <div className='mb-1 text-sm font-semibold text-gray-700'>
+                                            Ngày sinh
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {studentProfile?.dob}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className='mb-6 grid grid-cols-2 gap-6 lg:grid-cols-3'>
+                                    <div className='hidden lg:block'>
+                                        <div className='mb-1 text-sm font-semibold text-gray-700'>
+                                            Ngày sinh
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {studentProfile?.dob}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className='mb-1 text-sm font-semibold text-gray-700'>
+                                            Giới tính
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {studentProfile?.gender}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className='mb-1 text-sm font-semibold text-gray-700'>
+                                            Số CCCD
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {studentProfile?.cccd}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className='grid gap-6 lg:grid-cols-3'>
+                                    <div>
+                                        <div className='mb-1 text-sm font-semibold text-gray-700'>
+                                            Số điện thoại
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {studentProfile?.phone}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className='mb-1 text-sm font-semibold text-gray-700'>
+                                            Email
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {studentProfile?.email}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className='mb-1 text-sm font-semibold text-gray-700'>
+                                            Khoa
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {studentProfile?.major}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Registration Info */}
+                        <div className='mb-8 overflow-hidden rounded-2xl bg-white shadow-sm'>
+                            <div className='bg-blue-400 px-6 py-4 text-white'>
+                                <h2 className='text-xl font-bold'>
+                                    Thông tin đã đăng kí
+                                </h2>
+                            </div>
+                            <div className='p-6'>
+                                <div className='mb-6 grid gap-8 md:grid-cols-2'>
+                                    <div>
+                                        <div className='mb-2 text-sm font-semibold text-gray-700'>
+                                            Lĩnh vực cần hỗ trợ
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {formData.subjects.join(', ')}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className='mb-2 text-sm font-semibold text-gray-700'>
+                                            Môn học cụ thể
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {formData.specificSubjects}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className='mb-6 grid gap-8 md:grid-cols-2'>
+                                    <div>
+                                        <div className='mb-2 text-sm font-semibold text-gray-700'>
+                                            Khó khăn hiện tại
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {formData.challenges}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className='mb-2 text-sm font-semibold text-gray-700'>
+                                            Mục tiêu muốn đạt được
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {formData.goals}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className='mb-6 grid gap-8 md:grid-cols-2'>
+                                    <div>
+                                        <div className='mb-2 text-sm font-semibold text-gray-700'>
+                                            Tần suất buổi học mong muốn
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {formData.frequency ||
+                                                'Chưa cung cấp'}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className='mb-2 text-sm font-semibold text-gray-700'>
+                                            Hình thức học tập mong muốn
+                                        </div>
+                                        <div className='text-gray-800'>
+                                            {formData.format || 'Chưa cung cấp'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className='mb-6'>
+                                    <div className='mb-2 text-sm font-semibold text-gray-700'>
+                                        Thời gian có thể tham gia
+                                    </div>
+                                    <div className='text-gray-800'>
+                                        {formData.availability ||
+                                            'Chưa cung cấp'}
                                     </div>
                                 </div>
                                 <div>
-                                    <h3 className='mb-1 text-sm font-semibold uppercase text-gray-500'>
-                                        Môn học cụ thể
-                                    </h3>
-                                    <p className='font-medium text-gray-800'>
-                                        {registrationData.specificSubjects}
-                                    </p>
-                                </div>
-                                <div>
-                                    <h3 className='mb-1 text-sm font-semibold uppercase text-gray-500'>
-                                        Khó khăn hiện tại
-                                    </h3>
-                                    <p className='text-gray-800'>
-                                        {registrationData.challenges}
-                                    </p>
-                                </div>
-                                <div>
-                                    <h3 className='mb-1 text-sm font-semibold uppercase text-gray-500'>
-                                        Mục tiêu
-                                    </h3>
-                                    <p className='text-gray-800'>
-                                        {registrationData.goals}
-                                    </p>
-                                </div>
-                                <div className='col-span-1 mt-2 flex justify-end gap-4 border-t pt-6 md:col-span-2'>
-                                    <button
-                                        onClick={() => setIsRegistered(false)}
-                                        className='flex items-center gap-2 rounded-lg px-4 py-2 font-medium text-blue-600 transition-colors hover:bg-blue-50'
-                                    >
-                                        <Edit size={18} /> Cập nhật hồ sơ
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            if (window.confirm('Hủy đăng ký?'))
-                                                setIsRegistered(false);
-                                        }}
-                                        className='flex items-center gap-2 rounded-lg px-4 py-2 font-medium text-red-500 transition-colors hover:bg-red-50'
-                                    >
-                                        <X size={18} /> Hủy đăng ký
-                                    </button>
+                                    <div className='mb-2 text-sm font-semibold text-gray-700'>
+                                        Thông tin bổ sung
+                                    </div>
+                                    <div className='text-gray-800'>
+                                        {formData.additionalInfo ||
+                                            'Không có thông tin bổ sung'}
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className='flex justify-center gap-2 md:gap-4'>
+                            <button
+                                onClick={() => setIsRegistered(false)}
+                                className='flex items-center gap-2 rounded-lg border-2 border-blue-500 bg-white px-1 py-3 font-semibold text-blue-500 transition-colors hover:bg-blue-50 md:px-6'
+                            >
+                                <Edit size={20} />
+                                Cập nhật thông tin
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (window.confirm('Hủy đăng ký?')) {
+                                        setIsRegistered(false);
+                                        storage.deleteRegistrationByStudentId(
+                                            user!.id,
+                                        );
+                                        setFormData({
+                                            subjects: [],
+                                            specificSubjects: '',
+                                            challenges: '',
+                                            goals: '',
+                                            frequency: '',
+                                            format: '',
+                                            availability: '',
+                                            additionalInfo: '',
+                                        });
+                                    }
+                                }}
+                                className='flex items-center gap-2 rounded-lg border-2 border-red-500 bg-white px-6 py-3 font-semibold text-red-500 transition-colors hover:bg-red-50'
+                            >
+                                <X size={20} />
+                                Hủy đăng ký
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -267,7 +437,7 @@ const RegisterProgram: React.FC = () => {
         <>
             <Sidebar />
             <div className='ml-[80px] min-h-screen bg-blue-50 p-3 pt-4 font-bevietnam sm:p-4 md:ml-[260px] md:p-6'>
-                <div className='mx-auto max-w-5xl'>
+                <div className='mx-auto'>
                     <div className='mb-8'>
                         <h1 className='mb-2 text-3xl font-bold text-gray-800'>
                             Đăng ký tham gia Tutor/Mentor
@@ -296,10 +466,12 @@ const RegisterProgram: React.FC = () => {
                                         <div className='grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4'>
                                             {subjectOptions.map((sub) => (
                                                 <label
+                                                    htmlFor={`subject-${sub}`}
                                                     key={sub}
                                                     className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-all ${formData.subjects.includes(sub) ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 hover:bg-gray-50'}`}
                                                 >
                                                     <input
+                                                        id={`subject-${sub}`}
                                                         type='checkbox'
                                                         className='h-4 w-4 rounded text-blue-600 focus:ring-blue-500'
                                                         checked={formData.subjects.includes(
@@ -327,13 +499,17 @@ const RegisterProgram: React.FC = () => {
 
                                     <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
                                         <div>
-                                            <label className='mb-2 block text-sm font-semibold text-gray-700'>
+                                            <label
+                                                htmlFor='specificSubjects'
+                                                className='mb-2 block text-sm font-semibold text-gray-700'
+                                            >
                                                 Môn học cụ thể{' '}
                                                 <span className='text-red-500'>
                                                     *
                                                 </span>
                                             </label>
                                             <input
+                                                id='specificSubjects'
                                                 type='text'
                                                 className={`w-full rounded-lg border p-3 outline-none focus:ring-2 focus:ring-blue-500 ${errors.specificSubjects ? 'border-red-500' : 'border-gray-300'}`}
                                                 placeholder='VD: Giải tích 1, Cấu trúc dữ liệu...'
@@ -354,13 +530,17 @@ const RegisterProgram: React.FC = () => {
                                             )}
                                         </div>
                                         <div>
-                                            <label className='mb-2 block text-sm font-semibold text-gray-700'>
+                                            <label
+                                                htmlFor='goals'
+                                                className='mb-2 block text-sm font-semibold text-gray-700'
+                                            >
                                                 Mục tiêu đạt được{' '}
                                                 <span className='text-red-500'>
                                                     *
                                                 </span>
                                             </label>
                                             <input
+                                                id='goals'
                                                 type='text'
                                                 className={`w-full rounded-lg border p-3 outline-none focus:ring-2 focus:ring-blue-500 ${errors.goals ? 'border-red-500' : 'border-gray-300'}`}
                                                 placeholder='VD: Đạt điểm A, Hiểu rõ bản chất...'
@@ -381,13 +561,17 @@ const RegisterProgram: React.FC = () => {
                                     </div>
 
                                     <div>
-                                        <label className='mb-2 block text-sm font-semibold text-gray-700'>
+                                        <label
+                                            htmlFor='challenges'
+                                            className='mb-2 block text-sm font-semibold text-gray-700'
+                                        >
                                             Khó khăn hiện tại{' '}
                                             <span className='text-red-500'>
                                                 *
                                             </span>
                                         </label>
                                         <textarea
+                                            id='challenges'
                                             rows={3}
                                             className={`w-full resize-none rounded-lg border p-3 outline-none focus:ring-2 focus:ring-blue-500 ${errors.challenges ? 'border-red-500' : 'border-gray-300'}`}
                                             placeholder='Mô tả ngắn gọn khó khăn bạn đang gặp phải...'
@@ -415,10 +599,14 @@ const RegisterProgram: React.FC = () => {
                                 </h3>
                                 <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
                                     <div>
-                                        <label className='mb-2 block text-sm font-semibold text-gray-700'>
+                                        <label
+                                            htmlFor='format'
+                                            className='mb-2 block text-sm font-semibold text-gray-700'
+                                        >
                                             Hình thức học
                                         </label>
                                         <select
+                                            id='format'
                                             className='w-full rounded-lg border border-gray-300 p-3 outline-none focus:ring-2 focus:ring-blue-500'
                                             value={formData.format}
                                             onChange={(e) =>
@@ -443,10 +631,14 @@ const RegisterProgram: React.FC = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className='mb-2 block text-sm font-semibold text-gray-700'>
+                                        <label
+                                            htmlFor='frequency'
+                                            className='mb-2 block text-sm font-semibold text-gray-700'
+                                        >
                                             Tần suất mong muốn
                                         </label>
                                         <select
+                                            id='frequency'
                                             className='w-full rounded-lg border border-gray-300 p-3 outline-none focus:ring-2 focus:ring-blue-500'
                                             value={formData.frequency}
                                             onChange={(e) =>
@@ -471,10 +663,14 @@ const RegisterProgram: React.FC = () => {
                                         </select>
                                     </div>
                                     <div className='md:col-span-2'>
-                                        <label className='mb-2 block text-sm font-semibold text-gray-700'>
+                                        <label
+                                            htmlFor='availability'
+                                            className='mb-2 block text-sm font-semibold text-gray-700'
+                                        >
                                             Thời gian rảnh (Dự kiến)
                                         </label>
                                         <input
+                                            id='availability'
                                             type='text'
                                             className='w-full rounded-lg border border-gray-300 p-3 outline-none focus:ring-2 focus:ring-blue-500'
                                             placeholder='VD: Thứ 2 (13h-17h), Thứ 6 (Cả ngày)...'
@@ -486,6 +682,27 @@ const RegisterProgram: React.FC = () => {
                                                 )
                                             }
                                         />
+                                    </div>
+                                    <div className='md:col-span-2'>
+                                        <label
+                                            htmlFor='additionalInfo'
+                                            className='mb-2 block text-sm font-semibold text-gray-700'
+                                        >
+                                            Thông tin bổ sung{' '}
+                                        </label>
+                                        <textarea
+                                            id='additionalInfo'
+                                            rows={3}
+                                            className={`w-full resize-none rounded-lg border p-3 outline-none focus:ring-2 focus:ring-blue-500 ${errors.challenges ? 'border-red-500' : 'border-gray-300'}`}
+                                            placeholder='Mô tả thêm thông tin bạn muốn cung cấp...'
+                                            value={formData.additionalInfo}
+                                            onChange={(e) =>
+                                                handleInputChange(
+                                                    'additionalInfo',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        ></textarea>
                                     </div>
                                 </div>
                             </section>

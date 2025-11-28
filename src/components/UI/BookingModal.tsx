@@ -1,5 +1,5 @@
 import { X, MapPin } from 'lucide-react';
-import type { Program } from '@/interfaces/Schedule'; // Import "luật"
+import type { Program } from '@/interfaces/booking'; // Import "luật"
 
 // 1. Định nghĩa "props" (dữ liệu) mà component này cần nhận
 interface BookingModalProps {

@@ -15,6 +15,7 @@ import type {
 
 const KEYS = {
     USERS: 'tutor_app_users',
+    STUDENTS: 'tutor_app_students',
     SLOTS: 'tutor_app_slots',
     SESSIONS: 'tutor_app_sessions',
     DOCUMENTS: 'tutor_app_documents',
@@ -249,6 +250,11 @@ const SEED_USERS: (User | TutorProfile | StudentProfile)[] = [
         teachingStyle: 'Nghiêm khắc, logic',
         specialization: 'Khoa học máy tính',
         availableFormats: ['Offline'],
+        contactInfo: ['phung.nguyenhua@hcmut.edu.vn', '0123456789'],
+        professional: [
+            'Bằng Tiến sĩ - Trường Đại học Bách Khoa - Đại học Quốc gia Thành phố Hồ Chí Minh',
+            'Chuyên viên nghiên cứu học máy tại VinAI Research',
+        ],
     },
     {
         id: 't2',
@@ -274,6 +280,11 @@ const SEED_USERS: (User | TutorProfile | StudentProfile)[] = [
         teachingStyle: 'Thân thiện, tương tác cao',
         specialization: 'Toán ứng dụng',
         availableFormats: ['Offline', 'Online'],
+        contactInfo: ['duc.nguyenvan@hcmut.edu.vn', '0123456789'],
+        professional: [
+            'Thạc sĩ Toán ứng dụng - Đại học Quốc gia Hà Nội',
+            'Chuyên gia phân tích dữ liệu tại FPT Software',
+        ],
     },
     {
         id: 't3',
@@ -296,6 +307,11 @@ const SEED_USERS: (User | TutorProfile | StudentProfile)[] = [
         teachingStyle: 'Tương tác cao, tư duy phản biện',
         specialization: 'Kỹ thuật Polymer',
         availableFormats: ['Online', 'Offline'],
+        contactInfo: ['long.dang@hcmut.edu.vn', '0123456789'],
+        professional: [
+            'Kỹ sư quy trình tại Unilever Việt Nam',
+            'Hướng dẫn 20+ đề tài NCKH',
+        ],
     },
     // --- COORDINATOR ---
     {
@@ -357,6 +373,14 @@ const SEED_USERS: (User | TutorProfile | StudentProfile)[] = [
         cccd: '056205123456',
         phone: '0123456789',
         avatarBg: 'bg-blue-500',
+    },
+    {
+        id: 'f1',
+        username: 'faculty',
+        password: 'faculty_password',
+        name: 'Faculty Member',
+        role: 'faculty',
+        avatarBg: 'bg-gray-600',
     },
 ];
 
@@ -952,13 +976,13 @@ export const storage = {
                 ...generatedBookedSlots,
             ];
 
-            set(KEYS.USERS, SEED_USERS);
             set(KEYS.TEACHING_PERIODS, generatedTeachingPeriods);
             set(KEYS.SESSIONS, generatedSessions);
             set(KEYS.SLOTS, allSlots);
             set(KEYS.REGISTRATIONS, SEED_REGISTRATIONS);
             set(KEYS.TUTOR_REQUESTS, []);
             set(KEYS.DOCUMENTS, SEED_DOCUMENTS);
+            set(KEYS.USERS, SEED_USERS);
 
             localStorage.setItem(KEYS.IS_INIT, 'true');
         }
@@ -987,6 +1011,12 @@ export const storage = {
         const regs: ProgramRegistration[] = get(KEYS.REGISTRATIONS, []);
         return regs.find((r) => r.studentId === studentId);
     },
+    deleteRegistrationByStudentId: (studentId: string) => {
+        const regs: ProgramRegistration[] = get(KEYS.REGISTRATIONS, []);
+        const newRegs = regs.filter((r) => r.studentId !== studentId);
+        set(KEYS.REGISTRATIONS, newRegs);
+    },
+
     getRegistrationStatus: (
         studentId: string,
     ): 'none' | 'pending' | 'approved' | 'rejected' => {
@@ -1180,6 +1210,15 @@ export const storage = {
         );
     },
 
+    getTeachingActivePeriodsForStudent: (
+        studentId: string,
+    ): TeachingPeriod[] => {
+        const periods: TeachingPeriod[] = get(KEYS.TEACHING_PERIODS, []);
+        return periods.filter(
+            (p) => p.studentId === studentId && p.status === 'active',
+        );
+    },
+
     startTeachingPeriod: (
         tutorId: string,
         studentId: string,
@@ -1198,9 +1237,18 @@ export const storage = {
             studentName: student?.name || '',
             studentEmail: student?.email,
         };
-        periods.push(newPeriod);
-        set(KEYS.TEACHING_PERIODS, periods);
-        return newPeriod;
+        const isDuplicate = periods.some(
+            (p) =>
+                p.tutorId === tutorId &&
+                p.studentId === studentId &&
+                p.subject === subject,
+        );
+        if (!isDuplicate) {
+            periods.push(newPeriod);
+            set(KEYS.TEACHING_PERIODS, periods);
+            return newPeriod;
+        }
+        return null;
     },
 
     endTeachingPeriod: (periodId: string) => {

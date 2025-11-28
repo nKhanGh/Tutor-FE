@@ -24,6 +24,7 @@ interface SidebarItem {
 const Sidebar = () => {
     const { user, logout } = useAuth();
     let sidebarElements: SidebarItem[] = [];
+    const currentPage = location.pathname.split('/')[1];
 
     const role = user?.role;
 
@@ -124,6 +125,25 @@ const Sidebar = () => {
         default:
             sidebarElements = [];
             break;
+    }
+    if (currentPage === 'hcmut-library') {
+        sidebarElements = [
+            {
+                icon: faBuildingColumns,
+                content: 'Thư viện HCMUT',
+                path: '/hcmut-library/all-documents',
+            },
+            {
+                icon: faBook,
+                content: 'Đã lưu',
+                path: '/hcmut-library/saved-documents',
+            },
+            {
+                icon: faBook,
+                content: 'Đã chia sẻ',
+                path: '/hcmut-library/shared-documents',
+            },
+        ];
     }
 
     const displayRole =

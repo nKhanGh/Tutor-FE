@@ -1,4 +1,4 @@
-import type { Session } from '@/interfaces/Sesson';
+import type { Session } from '@/interfaces/booking';
 import { Calendar, Clock, X } from 'lucide-react';
 
 interface CancellationReasonModalProps {
@@ -34,7 +34,9 @@ const CancellationReasonModal: React.FC<CancellationReasonModalProps> = ({
                     <h3 className='mb-2 text-xl font-bold text-gray-800'>
                         {session.title}
                     </h3>
-                    <p className='mb-4 text-gray-600'>với {session.tutor}</p>
+                    <p className='mb-4 text-gray-600'>
+                        với {session.tutorName}
+                    </p>
 
                     <div className='mb-6 flex items-center gap-4 text-gray-600'>
                         <span className='flex items-center gap-1'>

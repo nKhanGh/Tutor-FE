@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Search,
     Star,
@@ -10,6 +10,8 @@ import {
     ChevronRight,
     CheckCircle,
     X,
+    Mail,
+    Phone,
 } from 'lucide-react';
 import Sidebar from '@/components/layouts/Sidebar';
 import { useNotification } from '@/hooks/useNotification';
@@ -17,11 +19,15 @@ import { storage } from '@/utils/storage';
 import { useAuth } from '@/contexts/AuthContext';
 import type { TutorProfile, TutorRequest } from '@/interfaces';
 import { getUserInitials } from '@/utils/helpers';
+import Loading from '@/components/UI/Loading';
 
 const ChooseTutor: React.FC = () => {
     const { user } = useAuth();
-    const { showSuccessNotification, showErrorNotification } =
-        useNotification();
+    const {
+        showSuccessNotification,
+        showErrorNotification,
+        showInfoNotification,
+    } = useNotification();
 
     const [tutors, setTutors] = useState<TutorProfile[]>([]);
     const [requests, setRequests] = useState<TutorRequest[]>([]);
@@ -29,13 +35,114 @@ const ChooseTutor: React.FC = () => {
     const [selectedTutor, setSelectedTutor] = useState<TutorProfile | null>(
         null,
     );
+    const [loading, setLoading] = useState(false);
     const [showAI, setShowAI] = useState(false);
 
+    const [showSubjectModal, setShowSubjectModal] = useState(false);
+    const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+    const [registeredSubjects, setRegisteredSubjects] = useState<string[]>([]);
+
+    const handleConfirmSubject = () => {
+        if (selectedSubjects.length === 0) {
+            showErrorNotification('Vui lòng chọn ít nhất một môn học!');
+            return;
+        }
+
+        if (!user || !selectedTutor) return;
+
+        try {
+            // Tạo teaching period cho từng môn học được chọn
+            selectedSubjects.forEach((subject) => {
+                storage.startTeachingPeriod(selectedTutor.id, user.id, subject);
+            });
+
+            showSuccessNotification(
+                `Đã chọn Tutor ${selectedTutor.name} cho ${selectedSubjects.length} môn học!`,
+            );
+            setShowSubjectModal(false);
+            setSelectedTutor(null);
+            setSelectedSubjects([]);
+            fetchRegisteredSubjects();
+        } catch (error) {
+            showErrorNotification('Có lỗi xảy ra khi tạo lịch học!');
+            console.error(error);
+        }
+    };
+
+    const getRegisteredSubjectsWithTutor = (tutorId: string) => {
+        if (!user) return [];
+        const periods = storage.getTeachingActivePeriodsForStudent(user.id);
+        return periods
+            .filter((p) => p.tutorId === tutorId)
+            .map((p) => p.subject);
+    };
+
+    const toggleSubject = (subject: string) => {
+        setSelectedSubjects((prev) =>
+            prev.includes(subject)
+                ? prev.filter((s) => s !== subject)
+                : [...prev, subject],
+        );
+    };
+
     // Load Data
+    const fetchRegisteredSubjects = useCallback(() => {
+        if (user) {
+            const subjects = storage
+                .getTeachingActivePeriodsForStudent(user.id)
+                .map((p) => p.subject);
+            setRegisteredSubjects(subjects);
+        }
+    }, [user]);
+
+    // Load Data - Sửa để tránh setState trực tiếp
     useEffect(() => {
-        const timer = setTimeout(() => {
-            // 1. Lấy danh sách gốc
+        const loadData = async () => {
+            setLoading(true);
+            setTutors([]);
+
+            // Delay để tránh cascading render
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
             let allTutors = storage.getAllTutors();
+            console.log('Fetched Tutors:', allTutors);
+
+            if (user) {
+                setRequests(storage.getRequestsByStudent(user.id));
+
+                if (showAI) {
+                    const reg = storage.getRegistrationByStudentId(user.id);
+                    if (reg) {
+                        const topPicks = storage.getRecommendedTutors(user.id);
+                        console.log('Top Picks from AI:', topPicks);
+                        allTutors = allTutors
+                            .map((t) => {
+                                const foundTop = topPicks.find(
+                                    (top) => top.id === t.id,
+                                );
+                                if (foundTop) return foundTop;
+                                return {
+                                    ...t,
+                                    matchPercentage: Math.floor(
+                                        Math.random() * 50,
+                                    ),
+                                };
+                            })
+                            .sort(
+                                (a, b) =>
+                                    (b.matchPercentage || 0) -
+                                    (a.matchPercentage || 0),
+                            );
+                    } else {
+                        showInfoNotification(
+                            'Vui lòng hoàn thành đăng ký học tập để sử dụng tính năng gợi ý AI.',
+                        );
+                        setShowAI(false);
+                        setLoading(false);
+                        return;
+                    }
+                }
+            }
 
             allTutors = allTutors.map((tutor) => {
                 const sessions = storage.getSessionsForTutor(tutor.id);
@@ -59,76 +166,17 @@ const ChooseTutor: React.FC = () => {
                 };
             });
 
-            if (user) {
-                setRequests(storage.getRequestsByStudent(user.id));
-
-                // 2. Nếu đang bật AI, tính toán matchPercentage và sort
-                if (showAI) {
-                    const reg = storage.getRegistrationByStudentId(user.id);
-                    if (reg) {
-                        // Tính điểm lại cho toàn bộ list (vì getRecommendedTutors chỉ trả về top 3)
-                        const topPicks = storage.getRecommendedTutors(user.id);
-
-                        allTutors = allTutors
-                            .map((t) => {
-                                const foundTop = topPicks.find(
-                                    (top) => top.id === t.id,
-                                );
-                                if (foundTop) return foundTop;
-                                return {
-                                    ...t,
-                                    matchPercentage: Math.floor(
-                                        Math.random() * 50,
-                                    ),
-                                }; // Random thấp cho người không thuộc top
-                            })
-                            .sort(
-                                (a, b) =>
-                                    (b.matchPercentage || 0) -
-                                    (a.matchPercentage || 0),
-                            );
-                    }
-                }
-            }
             setTutors(allTutors);
-        }, 0);
-        return () => clearTimeout(timer);
-    }, [user, showAI]);
-
-    // Logic xử lý yêu cầu ghép cặp
-    const handleRequestPairing = (tutor: TutorProfile) => {
-        if (!user) return;
-
-        // Check đã request chưa
-        const exists = requests.find(
-            (r) => r.tutorId === tutor.id && r.status === 'pending',
-        );
-        if (exists) {
-            showErrorNotification('Bạn đã gửi yêu cầu cho Tutor này rồi.');
-            return;
-        }
-
-        const newReq: TutorRequest = {
-            id: `TR-${Date.now()}`,
-            studentId: user.id,
-            studentName: user.name,
-            tutorId: tutor.id,
-            tutorName: tutor.name,
-            status: 'pending',
-            requestContent: 'Mong muốn được Tutor hỗ trợ môn học.',
-            createdAt: new Date().toLocaleDateString('vi-VN'),
+            setLoading(false);
         };
 
-        if (storage.createTutorRequest(newReq)) {
-            setRequests((prev) => [...prev, newReq]);
-            showSuccessNotification(
-                `Đã gửi yêu cầu ghép cặp đến ${tutor.name}`,
-            );
-            setSelectedTutor(null); // Đóng modal
-        } else {
-            showErrorNotification('Lỗi khi gửi yêu cầu.');
-        }
-    };
+        loadData();
+    }, [user, showAI, showInfoNotification]);
+
+    // Load registered subjects
+    useEffect(() => {
+        fetchRegisteredSubjects();
+    }, [fetchRegisteredSubjects]);
 
     // Helper check status
     const getRequestStatus = (tutorId: string) => {
@@ -162,18 +210,29 @@ const ChooseTutor: React.FC = () => {
                             </p>
                         </div>
                         <button
-                            onClick={() => setShowAI(!showAI)}
+                            onClick={() => {
+                                setShowAI(!showAI);
+                                setLoading(true);
+                            }}
                             className={`flex items-center gap-2 rounded-lg border px-4 py-2 font-semibold transition-all ${showAI ? 'border-transparent bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}
                         >
-                            <Star
-                                size={18}
-                                className={
-                                    showAI
-                                        ? 'fill-yellow-300 text-yellow-300'
-                                        : ''
-                                }
-                            />
-                            {showAI ? 'Gợi ý AI Đang Bật' : 'Bật Gợi ý AI'}
+                            {loading ? (
+                                <Loading size='sm' className='text-white' />
+                            ) : (
+                                <>
+                                    <Star
+                                        size={18}
+                                        className={
+                                            showAI
+                                                ? 'fill-yellow-300 text-yellow-300'
+                                                : ''
+                                        }
+                                    />
+                                    {showAI
+                                        ? 'Gợi ý AI Đang Bật'
+                                        : 'Bật Gợi ý AI'}
+                                </>
+                            )}
                         </button>
                     </div>
 
@@ -195,14 +254,26 @@ const ChooseTutor: React.FC = () => {
                     </div>
 
                     {/* Tutor List */}
+                    {loading ? (
+                        <div className='pt-12'>
+                            <Loading size='xl' />
+                        </div>
+                    ) : null}
                     <div className='space-y-4'>
                         {filteredTutors.map((tutor) => {
                             const status = getRequestStatus(tutor.id);
+                            const registeredWithThisTutor =
+                                getRegisteredSubjectsWithTutor(tutor.id);
+                            const hasRegistered =
+                                registeredWithThisTutor.length > 0;
+
                             return (
                                 <div
                                     key={tutor.id}
-                                    className='rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-md'
+                                    className='group relative rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-md'
                                 >
+                                    {/* Thẻ thông báo đã đăng ký - hiện khi hover */}
+
                                     <div className='flex flex-col items-start gap-6 md:flex-row'>
                                         {/* Avatar */}
                                         <div
@@ -232,13 +303,11 @@ const ChooseTutor: React.FC = () => {
                                                 </div>
                                                 {/* Hiển thị Badge AI nếu showAI bật và có điểm cao */}
                                                 {showAI &&
-                                                    tutor.matchPercentage &&
-                                                    tutor.matchPercentage >
-                                                        60 && (
+                                                    tutor.matchPercentage && (
                                                         <span
                                                             className={`rounded-full px-3 py-1 text-xs font-bold ${
                                                                 tutor.matchPercentage >
-                                                                85
+                                                                80
                                                                     ? 'bg-purple-100 text-purple-700'
                                                                     : 'bg-blue-100 text-blue-700'
                                                             }`}
@@ -310,6 +379,23 @@ const ChooseTutor: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
+                                    {hasRegistered && (
+                                        <div className='z-10 hidden max-w-3xl rounded-lg border-[2px] border-green-500 px-2 py-1 text-sm font-semibold text-green-500 shadow-lg group-hover:inline-block'>
+                                            <div className='flex items-center gap-2'>
+                                                <CheckCircle size={16} />
+                                                <span>
+                                                    Bạn đã đăng ký{' '}
+                                                    {
+                                                        registeredWithThisTutor.length
+                                                    }{' '}
+                                                    môn với tutor này:{' '}
+                                                    {registeredWithThisTutor.join(
+                                                        ', ',
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
@@ -320,19 +406,17 @@ const ChooseTutor: React.FC = () => {
             {/* Tutor Detail Modal */}
             {selectedTutor && (
                 <div className='fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4'>
-                    <div className='max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white'>
-                        <div className='relative h-32 bg-gradient-to-r from-[#0795DF] to-[#00C0EF]'>
+                    <div className='max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white'>
+                        <div className='relative bg-gradient-to-r from-blue-500 to-cyan-400 p-8'>
                             <button
                                 onClick={() => setSelectedTutor(null)}
-                                className='absolute right-4 top-4 rounded-full bg-white/20 p-2 text-white transition-colors hover:bg-white/30'
+                                className='absolute right-4 top-4 rounded-lg p-2 text-white transition-colors hover:bg-white hover:bg-opacity-20'
                             >
-                                <X size={20} />
+                                <X size={24} />
                             </button>
-                        </div>
-                        <div className='px-8 pb-8'>
-                            <div className='relative -mt-12 mb-4'>
+                            <div className='flex items-center gap-4 text-white'>
                                 <div
-                                    className={`flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border-4 border-white text-3xl font-bold text-white ${!selectedTutor.avatar ? selectedTutor.avatarBg || 'bg-gray-400' : ''}`}
+                                    className={`h-20 w-20 ${selectedTutor.avatarBg} flex items-center justify-center rounded-2xl text-3xl font-bold`}
                                 >
                                     {selectedTutor.avatar ? (
                                         <img
@@ -344,95 +428,287 @@ const ChooseTutor: React.FC = () => {
                                         getUserInitials(selectedTutor.name)
                                     )}
                                 </div>
-                            </div>
-
-                            <h2 className='text-2xl font-bold text-gray-800'>
-                                {selectedTutor.name}
-                            </h2>
-                            <p className='mb-6 text-gray-500'>
-                                {selectedTutor.major}
-                            </p>
-
-                            <div className='space-y-6'>
                                 <div>
-                                    <h4 className='mb-2 flex items-center gap-2 font-bold text-gray-800'>
-                                        <Rocket
-                                            size={18}
-                                            className='text-blue-500'
-                                        />{' '}
-                                        Giới thiệu
-                                    </h4>
-                                    <p className='text-sm leading-relaxed text-gray-600'>
-                                        {selectedTutor.bio}
+                                    <h2 className='mb-1 text-2xl font-bold'>
+                                        {selectedTutor.name}
+                                    </h2>
+                                    <p className='text-blue-100'>
+                                        {selectedTutor.role === 'tutor'
+                                            ? 'Giảng viên'
+                                            : 'Sinh viên'}{' '}
+                                        - {selectedTutor.major}
                                     </p>
-                                </div>
-
-                                <div>
-                                    <h4 className='mb-2 flex items-center gap-2 font-bold text-gray-800'>
-                                        <BookOpen
-                                            size={18}
-                                            className='text-blue-500'
-                                        />{' '}
-                                        Chuyên môn
-                                    </h4>
-                                    <p className='text-sm text-gray-600'>
-                                        {selectedTutor.specialization}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <h4 className='mb-2 flex items-center gap-2 font-bold text-gray-800'>
-                                        <Award
-                                            size={18}
-                                            className='text-blue-500'
-                                        />{' '}
-                                        Thành tựu
-                                    </h4>
-                                    <ul className='list-inside list-disc text-sm text-gray-600'>
-                                        {selectedTutor.achievements.map((a) => (
-                                            <li key={a}>{a}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-
-                                <div className='grid grid-cols-2 gap-4 rounded-xl bg-gray-50 p-4'>
-                                    <div>
-                                        <span className='block text-xs font-bold uppercase text-gray-500'>
-                                            Lịch dạy
+                                    <div className='mt-2 flex items-center gap-4'>
+                                        <span className='flex items-center gap-1'>
+                                            <Star size={16} fill='white' />
+                                            {selectedTutor.rating}/5.0
                                         </span>
-                                        <span className='text-sm font-semibold text-gray-800'>
-                                            {selectedTutor.scheduleDescription}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span className='block text-xs font-bold uppercase text-gray-500'>
-                                            Hình thức
-                                        </span>
-                                        <span className='text-sm font-semibold text-gray-800'>
-                                            {selectedTutor.availableFormats.join(
-                                                ', ',
-                                            )}
+                                        <span className='flex items-center gap-1'>
+                                            <Users size={16} />
+                                            {selectedTutor.totalSessions} buổi
+                                            học
                                         </span>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
+                        <div className='p-8'>
+                            <div className='mb-6'>
+                                <div className='mb-3 flex items-center gap-2'>
+                                    <Rocket
+                                        className='text-blue-500'
+                                        size={20}
+                                    />
+                                    <h3 className='font-bold text-gray-800'>
+                                        Trình độ chuyên môn
+                                    </h3>
+                                </div>
+                                {selectedTutor?.professional?.length !== 0 &&
+                                    selectedTutor?.professional?.map((prof) => (
+                                        <p
+                                            key={prof}
+                                            className='ml-7 text-gray-700'
+                                        >
+                                            {prof}
+                                        </p>
+                                    ))}
+                            </div>
+
+                            {/* Specialization */}
+                            <div className='mb-6'>
+                                <div className='mb-3 flex items-center gap-2'>
+                                    <Users
+                                        className='text-blue-500'
+                                        size={20}
+                                    />
+                                    <h3 className='font-bold text-gray-800'>
+                                        Lĩnh vực chuyên môn
+                                    </h3>
+                                </div>
+                                <p className='ml-7 text-gray-700'>
+                                    {selectedTutor.specialization}
+                                </p>
+                            </div>
+
+                            {/* Subjects */}
+                            <div className='mb-6'>
+                                <div className='mb-3 flex items-center gap-2'>
+                                    <BookOpen
+                                        className='text-blue-500'
+                                        size={20}
+                                    />
+                                    <h3 className='font-bold text-gray-800'>
+                                        Môn học hỗ trợ
+                                    </h3>
+                                </div>
+                                <div className='ml-7 flex flex-wrap gap-2'>
+                                    {selectedTutor.subjects.map((subject) => (
+                                        <span
+                                            key={subject}
+                                            className='rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-600'
+                                        >
+                                            {subject}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Teaching Style */}
+                            <div className='mb-6'>
+                                <div className='mb-3 flex items-center gap-2'>
+                                    <Star className='text-blue-500' size={20} />
+                                    <h3 className='font-bold text-gray-800'>
+                                        Phong cách giảng dạy
+                                    </h3>
+                                </div>
+                                <p className='ml-7 text-gray-700'>
+                                    {selectedTutor.teachingStyle}
+                                </p>
+                            </div>
+
+                            {/* Achievements */}
+                            <div className='mb-6'>
+                                <div className='mb-3 flex items-center gap-2'>
+                                    <Award
+                                        className='text-blue-500'
+                                        size={20}
+                                    />
+                                    <h3 className='font-bold text-gray-800'>
+                                        Thành tựu đạt được
+                                    </h3>
+                                </div>
+                                <div className='ml-7 space-y-2'>
+                                    {selectedTutor.achievements.map(
+                                        (achievement) => (
+                                            <div
+                                                key={achievement}
+                                                className='flex items-center gap-2 text-gray-700'
+                                            >
+                                                <div className='h-2 w-2 rounded-full bg-green-500'></div>
+                                                {achievement}
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Schedule */}
+                            <div className='mb-6'>
+                                <div className='mb-3 flex items-center gap-2'>
+                                    <Clock
+                                        className='text-blue-500'
+                                        size={20}
+                                    />
+                                    <h3 className='font-bold text-gray-800'>
+                                        Lịch rảnh tuần này
+                                    </h3>
+                                </div>
+                                <p className='ml-7 text-gray-700'>
+                                    {selectedTutor.scheduleDescription}
+                                </p>
+                                <div className='ml-7 mt-2 space-y-1'>
+                                    {selectedTutor.availableFormats.map(
+                                        (format) => (
+                                            <div
+                                                key={format}
+                                                className='flex items-center gap-2 text-gray-700'
+                                            >
+                                                <div className='h-2 w-2 rounded-full bg-green-500'></div>
+                                                {format === 'Offline'
+                                                    ? 'Trực tiếp tại trường'
+                                                    : 'Trực tuyến qua Zoom hoặc Google Meet'}
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Contact */}
+                            <div className='mb-6'>
+                                <h3 className='mb-3 font-bold text-gray-800'>
+                                    Liên hệ
+                                </h3>
+                                <div className='space-y-2'>
+                                    <div className='flex items-center gap-2'>
+                                        <Mail
+                                            className='text-blue-600'
+                                            size={20}
+                                        />
+                                        <span className='text-gray-800'>
+                                            {selectedTutor.contactInfo[0]}
+                                        </span>
+                                    </div>
+                                    <div className='flex items-center gap-2'>
+                                        <Phone
+                                            className='text-blue-600'
+                                            size={20}
+                                        />
+                                        <span className='text-gray-800'>
+                                            {selectedTutor.contactInfo[1]}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
                             <div className='mt-8 flex gap-4'>
                                 <button
+                                    onClick={() => setShowSubjectModal(true)}
+                                    className='flex-1 rounded-lg bg-red-500 py-3 font-semibold text-white transition-colors hover:bg-red-600'
+                                >
+                                    Chọn Tutor này
+                                </button>
+                                <button
                                     onClick={() => setSelectedTutor(null)}
-                                    className='flex-1 rounded-xl border border-gray-300 py-3 font-bold text-gray-600 hover:bg-gray-50'
+                                    className='rounded-lg border-2 border-gray-300 px-8 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50'
                                 >
                                     Đóng
                                 </button>
-                                <button
-                                    onClick={() =>
-                                        handleRequestPairing(selectedTutor)
-                                    }
-                                    className='flex-1 rounded-xl bg-[#0795DF] py-3 font-bold text-white shadow-lg shadow-blue-200 hover:bg-blue-600'
-                                >
-                                    Gửi yêu cầu ghép cặp
-                                </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showSubjectModal && selectedTutor && (
+                <div className='fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4'>
+                    <div className='w-full max-w-md rounded-2xl bg-white p-6 shadow-xl'>
+                        <div className='mb-4 flex items-center justify-between'>
+                            <h3 className='text-xl font-bold text-gray-800'>
+                                Chọn môn học
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowSubjectModal(false);
+                                    setSelectedSubjects([]);
+                                }}
+                                className='rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100'
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <p className='mb-4 text-sm text-gray-600'>
+                            Chọn môn học bạn muốn học với{' '}
+                            <span className='font-semibold'>
+                                {selectedTutor.name}
+                            </span>
+                        </p>
+
+                        <div className='mb-6 space-y-2'>
+                            {selectedTutor.subjects.map((subject) => (
+                                <label
+                                    key={subject}
+                                    className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-4 transition-all ${
+                                        selectedSubjects.includes(subject)
+                                            ? 'border-blue-500 bg-blue-50'
+                                            : 'border-gray-200 hover:border-gray-300'
+                                    }`}
+                                >
+                                    <input
+                                        type='checkbox'
+                                        name='subject'
+                                        value={subject}
+                                        checked={
+                                            selectedSubjects.includes(
+                                                subject,
+                                            ) ||
+                                            registeredSubjects.includes(subject)
+                                        }
+                                        disabled={registeredSubjects.includes(
+                                            subject,
+                                        )}
+                                        onChange={() => toggleSubject(subject)}
+                                        className='h-4 w-4 text-blue-600'
+                                    />
+                                    <span className='font-medium text-gray-800'>
+                                        {subject}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+
+                        <div className='flex gap-3'>
+                            <button
+                                onClick={handleConfirmSubject}
+                                disabled={selectedSubjects.length === 0}
+                                className={`flex-1 rounded-lg py-3 font-semibold text-white transition-colors ${
+                                    selectedSubjects.length > 0
+                                        ? 'bg-blue-600 hover:bg-blue-700'
+                                        : 'cursor-not-allowed bg-gray-300'
+                                }`}
+                            >
+                                Xác nhận ({selectedSubjects.length} môn)
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowSubjectModal(false);
+                                    setSelectedSubjects([]);
+                                }}
+                                className='rounded-lg border-2 border-gray-300 px-6 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50'
+                            >
+                                Hủy
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -37,6 +37,25 @@ const Login = () => {
         }
     };
 
+    const textButtonRole = (role: string) => {
+        switch (role) {
+            case 'student':
+                return '🎓 Sinh viên';
+                break;
+            case 'tutor':
+                return '👨‍🏫 Tutor';
+                break;
+            case 'coordinator':
+                return '🛠 Điều phối viên';
+                break;
+            case 'faculty':
+                return '🏫 Khoa / Phòng CTSV';
+                break;
+            default:
+                return 'Người dùng';
+        }
+    };
+
     return (
         <div className='flex min-h-screen bg-white font-bevietnam'>
             {/* --- CỘT BÊN TRÁI (NỘI DUNG) --- */}
@@ -107,11 +126,7 @@ const Login = () => {
                                             {u.name}
                                         </p>
                                         <p className='flex items-center gap-1 text-xs capitalize text-gray-500'>
-                                            {u.role === 'student'
-                                                ? '🎓 Sinh viên'
-                                                : u.role === 'tutor'
-                                                  ? '👨‍🏫 Tutor'
-                                                  : '🛠 Điều phối viên'}
+                                            {textButtonRole(u.role)}
                                         </p>
                                     </div>
 

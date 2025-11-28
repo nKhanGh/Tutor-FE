@@ -288,7 +288,7 @@ const Schedule = () => {
         <>
             <Sidebar />
             <div className='ml-[80px] min-h-screen bg-blue-50 p-3 font-bevietnam sm:p-4 md:ml-[260px] md:p-6'>
-                <div className='mx-auto flex h-full max-w-5xl flex-col'>
+                <div className='mx-auto flex h-full flex-col'>
                     {/* HEADER */}
                     <div className='mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center'>
                         <div className='flex items-center gap-3'>

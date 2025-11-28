@@ -4,7 +4,7 @@ export interface User {
     username: string;
     password?: string;
     name: string;
-    role: 'student' | 'tutor' | 'coordinator' | 'admin';
+    role: 'student' | 'tutor' | 'coordinator' | 'admin' | 'faculty';
     avatar?: string;
     avatarBg?: string;
     email?: string;
@@ -35,9 +35,11 @@ export interface TutorProfile extends User {
     totalSessions: number;
     bio: string;
     scheduleDescription: string;
+    professional: string[];
     achievements: string[];
     teachingStyle: string;
     specialization: string;
+    contactInfo: string[];
     availableFormats: string[];
     matchPercentage?: number;
 }

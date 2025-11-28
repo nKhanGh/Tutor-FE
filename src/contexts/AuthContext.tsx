@@ -47,6 +47,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     case 'coordinator':
                         navigate('/coordinator/overview');
                         break;
+                    case 'faculty':
+                        navigate('/faculty');
+                        break;
                     default:
                         navigate('/');
                 }
