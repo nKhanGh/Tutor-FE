@@ -7,6 +7,11 @@ import {
     Video,
     Link as LinkIcon,
     Download,
+    AlertCircle,
+    ArrowRight,
+    MessageSquare,
+    User,
+    FileText,
 } from 'lucide-react';
 import type { Session, Document } from '@/interfaces';
 import { storage } from '@/utils/storage';
@@ -22,10 +27,8 @@ const SessionDetailModal = ({
     onClose,
     session,
 }: SessionDetailModalProps) => {
-    // State lưu trữ tài liệu
     const [documents, setDocuments] = useState<Document[]>([]);
 
-    // Effect load tài liệu
     useEffect(() => {
         const timer = setTimeout(() => {
             if (
@@ -33,18 +36,12 @@ const SessionDetailModal = ({
                 session?.attachedDocumentIds &&
                 session.attachedDocumentIds.length > 0
             ) {
-                // Dùng setTimeout để tránh lỗi setState synchronously within an effect
-                const timer = setTimeout(() => {
-                    const allDocs = storage.getDocuments();
-                    // Lọc ra các docs có ID nằm trong danh sách attachedDocumentIds
-                    const attachedDocs = allDocs.filter((doc) =>
-                        session.attachedDocumentIds?.includes(doc.id),
-                    );
-                    setDocuments(attachedDocs);
-                }, 0);
-                return () => clearTimeout(timer);
+                const allDocs = storage.getDocuments();
+                const attachedDocs = allDocs.filter((doc) =>
+                    session.attachedDocumentIds?.includes(doc.id),
+                );
+                setDocuments(attachedDocs);
             } else {
-                // Reset nếu không có tài liệu
                 setDocuments([]);
             }
         }, 0);
@@ -53,9 +50,13 @@ const SessionDetailModal = ({
 
     if (!isOpen || !session) return null;
 
+    const { pendingChange } = session;
+    // Kiểm tra xem có đang xin đổi lịch không
+    const isRescheduling = pendingChange?.type === 'reschedule';
+
     return (
-        <div className='animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 font-bevietnam'>
-            <div className='flex max-h-[90vh] w-full max-w-md scale-100 transform flex-col overflow-hidden rounded-2xl bg-white shadow-2xl transition-all'>
+        <div className='animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 font-bevietnam backdrop-blur-sm'>
+            <div className='animate-in fade-in zoom-in flex max-h-[90vh] w-full max-w-lg scale-100 transform flex-col overflow-hidden rounded-2xl bg-white shadow-2xl transition-all duration-200'>
                 {/* Header */}
                 <div className='relative shrink-0 bg-gradient-to-r from-[#0795DF] to-[#00C0EF] p-6 text-white'>
                     <button
@@ -66,52 +67,133 @@ const SessionDetailModal = ({
                     </button>
                     <h2 className='pr-8 text-xl font-bold'>{session.title}</h2>
                     <p className='mt-1 text-sm text-blue-100 opacity-90'>
-                        Thông tin chi tiết buổi học
+                        Mã buổi học: #{session.id.slice(-6).toUpperCase()}
                     </p>
                 </div>
 
-                {/* Body - Thêm overflow-y-auto để cuộn nếu nội dung dài */}
-                <div className='space-y-6 overflow-y-auto p-6'>
-                    {/* Time & Date */}
-                    <div className='flex gap-4'>
-                        <div className='flex-1 rounded-xl border border-blue-100 bg-blue-50 p-3'>
-                            <div className='mb-1 flex items-center gap-2 text-[#0795DF]'>
-                                <Calendar size={18} />
-                                <span className='text-xs font-bold uppercase'>
-                                    Ngày
+                {/* Body */}
+                <div className='custom-scrollbar space-y-6 overflow-y-auto p-6'>
+                    {/* --- KHU VỰC THÔNG BÁO YÊU CẦU THAY ĐỔI --- */}
+                    {pendingChange && (
+                        <div
+                            className={`rounded-xl border p-4 shadow-sm ${pendingChange.type === 'cancel' ? 'border-red-200 bg-red-50' : 'border-orange-200 bg-orange-50'}`}
+                        >
+                            <div className='mb-4 flex items-center gap-2 border-b border-black/5 pb-2'>
+                                <AlertCircle
+                                    size={20}
+                                    className={
+                                        pendingChange.type === 'cancel'
+                                            ? 'text-red-600'
+                                            : 'text-orange-600'
+                                    }
+                                />
+                                <span
+                                    className={`font-bold ${pendingChange.type === 'cancel' ? 'text-red-700' : 'text-orange-700'}`}
+                                >
+                                    {pendingChange.type === 'cancel'
+                                        ? 'Yêu cầu HỦY đang chờ duyệt'
+                                        : 'Yêu cầu ĐỔI LỊCH đang chờ duyệt'}
                                 </span>
                             </div>
-                            <p className='font-semibold text-gray-800'>
-                                {session.date}
-                            </p>
-                        </div>
-                        <div className='flex-1 rounded-xl border border-blue-100 bg-blue-50 p-3'>
-                            <div className='mb-1 flex items-center gap-2 text-[#0795DF]'>
-                                <Clock size={18} />
-                                <span className='text-xs font-bold uppercase'>
-                                    Thời gian
-                                </span>
-                            </div>
-                            <p className='font-semibold text-gray-800'>
-                                {session.time}
-                            </p>
-                        </div>
-                    </div>
 
-                    {/* Student Info */}
+                            {/* GIAO DIỆN SO SÁNH TRỰC QUAN (Chỉ hiện khi Đổi lịch) */}
+                            {isRescheduling && (
+                                <div className='mb-3 flex items-center justify-between rounded-lg border border-orange-100 bg-white p-3'>
+                                    {/* Bên Trái: Lịch Cũ */}
+                                    <div className='flex w-5/12 flex-col items-center opacity-60'>
+                                        <span className='mb-1 text-[10px] font-bold uppercase text-gray-500'>
+                                            Lịch cũ
+                                        </span>
+                                        <div className='text-center text-sm font-medium text-gray-600 decoration-red-400 decoration-2'>
+                                            <div>{session.date}</div>
+                                            <div className='text-xs'>
+                                                {session.time}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Ở Giữa: Mũi Tên */}
+                                    <div className='flex w-2/12 justify-center text-orange-500'>
+                                        <ArrowRight size={24} />
+                                    </div>
+
+                                    {/* Bên Phải: Lịch Mới */}
+                                    <div className='flex w-5/12 flex-col items-center rounded border border-green-100 bg-green-50 py-1'>
+                                        <span className='mb-1 text-[10px] font-bold uppercase text-green-600'>
+                                            Lịch mới
+                                        </span>
+                                        <div className='text-center text-sm font-bold text-green-700'>
+                                            <div>
+                                                {pendingChange.newDate ||
+                                                    session.date}
+                                            </div>
+                                            <div className='text-xs'>
+                                                {pendingChange.newTime ||
+                                                    session.time}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Lý do */}
+                            <div
+                                className={`flex gap-2 text-sm italic ${pendingChange.type === 'cancel' ? 'text-red-800' : 'text-orange-800'}`}
+                            >
+                                <MessageSquare
+                                    size={16}
+                                    className='mt-0.5 shrink-0'
+                                />
+                                <span>"{pendingChange.reason}"</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- THÔNG TIN THỜI GIAN CỐ ĐỊNH --- */}
+                    {/* Logic: Nếu đang đổi lịch (isRescheduling = true) thì ẨN phần này đi để đỡ rối */}
+                    {!isRescheduling && (
+                        <div className='flex gap-4'>
+                            <div className='flex-1 rounded-xl border border-blue-100 bg-blue-50 p-3'>
+                                <div className='mb-1 flex items-center gap-2 text-[#0795DF]'>
+                                    <Calendar size={18} />
+                                    <span className='text-xs font-bold uppercase'>
+                                        Ngày
+                                    </span>
+                                </div>
+                                <p className='font-semibold text-gray-800'>
+                                    {session.date}
+                                </p>
+                            </div>
+                            <div className='flex-1 rounded-xl border border-blue-100 bg-blue-50 p-3'>
+                                <div className='mb-1 flex items-center gap-2 text-[#0795DF]'>
+                                    <Clock size={18} />
+                                    <span className='text-xs font-bold uppercase'>
+                                        Thời gian
+                                    </span>
+                                </div>
+                                <p className='font-semibold text-gray-800'>
+                                    {session.time}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Person Info */}
                     <div className='flex items-start gap-4 rounded-xl border border-gray-100 bg-gray-50 p-4'>
                         <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0795DF] font-bold text-white'>
-                            {session.studentName.charAt(0)}
+                            <User size={20} />
                         </div>
                         <div>
                             <p className='mb-0.5 text-xs font-bold uppercase text-gray-500'>
-                                Sinh viên
+                                {session.studentName
+                                    ? 'Sinh viên'
+                                    : 'Người tham gia'}
                             </p>
                             <p className='font-bold text-gray-800'>
-                                {session.studentName}
+                                {session.studentName || session.tutorName}
                             </p>
                             <p className='text-sm text-gray-500'>
-                                MSSV: {session.studentId || 'N/A'}
+                                ID: {session.studentId || session.tutorId}
                             </p>
                         </div>
                     </div>
@@ -128,16 +210,24 @@ const SessionDetailModal = ({
                                 ? 'Link phòng học'
                                 : 'Địa điểm'}
                         </p>
-                        <div className='break-all rounded-lg border border-gray-200 bg-gray-100 p-3 text-sm font-medium text-gray-700'>
-                            {session.locationOrLink}
+                        <div className='flex items-center justify-between break-all rounded-lg border border-gray-200 bg-gray-100 p-3 text-sm font-medium text-gray-700'>
+                            <span>{session.locationOrLink}</span>
+                            {session.type === 'online' && (
+                                <a
+                                    href='#'
+                                    className='flex items-center gap-1 text-xs text-blue-600 hover:underline'
+                                >
+                                    <LinkIcon size={12} /> Mở
+                                </a>
+                            )}
                         </div>
                     </div>
 
-                    {/* --- PHẦN HIỂN THỊ TÀI LIỆU --- */}
+                    {/* Documents */}
                     {documents.length > 0 && (
-                        <div className='space-y-2'>
+                        <div className='space-y-2 border-t border-gray-100 pt-2'>
                             <p className='flex items-center gap-2 text-sm font-bold text-gray-700'>
-                                <LinkIcon
+                                <FileText
                                     size={18}
                                     className='text-orange-500'
                                 />
@@ -171,7 +261,6 @@ const SessionDetailModal = ({
                                                 {doc.fileInfo}
                                             </p>
                                         </div>
-                                        {/* Nút tải giả lập */}
                                         <button className='p-2 text-gray-400 transition-colors hover:text-[#0795DF]'>
                                             <Download size={16} />
                                         </button>
@@ -181,10 +270,10 @@ const SessionDetailModal = ({
                         </div>
                     )}
 
-                    {/* Status Badge */}
-                    <div className='flex items-center justify-between border-t border-gray-100 pt-2'>
+                    {/* Status Text */}
+                    <div className='flex items-center justify-center gap-2 border-t border-gray-100 pt-4'>
                         <span className='text-sm text-gray-500'>
-                            Trạng thái:
+                            Trạng thái hiện tại:
                         </span>
                         <span
                             className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -192,14 +281,18 @@ const SessionDetailModal = ({
                                     ? 'bg-blue-100 text-blue-700'
                                     : session.status === 'pending'
                                       ? 'bg-yellow-100 text-yellow-700'
-                                      : 'bg-gray-100 text-gray-700'
+                                      : session.status.includes('cancelled')
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-green-100 text-green-700'
                             }`}
                         >
                             {session.status === 'upcoming'
                                 ? 'Sắp diễn ra'
                                 : session.status === 'pending'
                                   ? 'Chờ duyệt'
-                                  : session.status}
+                                  : session.status === 'completed'
+                                    ? 'Hoàn thành'
+                                    : 'Đã hủy'}
                         </span>
                     </div>
                 </div>
@@ -208,7 +301,7 @@ const SessionDetailModal = ({
                 <div className='flex shrink-0 justify-end border-t bg-gray-50 p-4'>
                     <button
                         onClick={onClose}
-                        className='rounded-lg border border-gray-300 bg-white px-6 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-gray-50'
+                        className='rounded-xl border border-gray-300 bg-white px-6 py-2.5 font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-100'
                     >
                         Đóng
                     </button>

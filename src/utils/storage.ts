@@ -11,6 +11,7 @@ import type {
     TutorRequest,
     TeachingPeriod,
     Document,
+    PendingChange,
 } from '@/interfaces';
 
 const KEYS = {
@@ -976,6 +977,52 @@ export const storage = {
                 ...generatedBookedSlots,
             ];
 
+            const upcomingSessions = generatedSessions.filter(
+                (s) => s.status === 'upcoming',
+            );
+
+            // 1. Tạo 1 yêu cầu Hủy cho session đầu tiên
+            if (upcomingSessions.length > 0) {
+                const s = upcomingSessions[0];
+                s.pendingChange = {
+                    type: 'cancel',
+                    reason: 'Em bị ốm đột xuất, mong thầy thông cảm ạ.',
+                    createdAt: new Date().toISOString(),
+                };
+            }
+
+            // 2. Tạo 1 yêu cầu Đổi lịch cho session thứ hai (Và block slot tương ứng)
+            if (upcomingSessions.length > 1) {
+                const s = upcomingSessions[1];
+                // Tìm 1 slot rảnh bất kỳ của Tutor này để đổi sang
+                const tutorSlots = allSlots.filter(
+                    (slot) =>
+                        slot.tutorId === s.tutorId &&
+                        slot.status === 'available',
+                );
+
+                if (tutorSlots.length > 0) {
+                    const targetSlot = tutorSlots[0];
+
+                    // Gán yêu cầu vào Session
+                    s.pendingChange = {
+                        type: 'reschedule',
+                        reason: 'Em bị trùng lịch thi trên trường.',
+                        newDate: targetSlot.date,
+                        newTime: `${targetSlot.startTime} - ${targetSlot.endTime}`,
+                        createdAt: new Date().toISOString(),
+                    };
+
+                    // QUAN TRỌNG: Khóa slot đích lại ngay lập tức (Chuyển sang pending)
+                    // Để đảm bảo logic không bị người khác đặt mất slot này
+                    targetSlot.status = 'pending';
+                    targetSlot.bookedByStudentId = s.studentId;
+                    targetSlot.bookedByStudentName = s.studentName;
+                    targetSlot.subject = s.title;
+                    targetSlot.requestNote = `Đang chờ đổi lịch từ buổi học cũ (${s.date})`;
+                }
+            }
+
             set(KEYS.TEACHING_PERIODS, generatedTeachingPeriods);
             set(KEYS.SESSIONS, generatedSessions);
             set(KEYS.SLOTS, allSlots);
@@ -1399,6 +1446,196 @@ export const storage = {
             console.error(error);
             return false;
         }
+    },
+
+    requestSessionChange: (
+        sessionId: string,
+        change: PendingChange,
+    ): boolean => {
+        const sessions = storage.getSessions();
+        const slots = storage.getSlots(); // Lấy danh sách slot
+        const idx = sessions.findIndex((s) => s.id === sessionId);
+
+        if (idx !== -1) {
+            // Kiểm tra session này đã có yêu cầu nào chưa
+            if (sessions[idx].pendingChange) return false;
+
+            // --- LOGIC MỚI: KHÓA SLOT NẾU LÀ ĐỔI LỊCH ---
+            if (
+                change.type === 'reschedule' &&
+                change.newDate &&
+                change.newTime
+            ) {
+                const [start] = change.newTime.split(' - ');
+
+                // Tìm slot tương ứng với lịch mới
+                const slotIndex = slots.findIndex(
+                    (s) =>
+                        s.tutorId === sessions[idx].tutorId &&
+                        s.date === change.newDate &&
+                        s.startTime === start,
+                );
+
+                // Nếu slot không tồn tại hoặc không rảnh -> Báo lỗi
+                if (
+                    slotIndex === -1 ||
+                    slots[slotIndex].status !== 'available'
+                ) {
+                    return false;
+                }
+
+                // Khóa slot lại (Status = pending)
+                slots[slotIndex].status = 'pending';
+                slots[slotIndex].bookedByStudentId = sessions[idx].studentId;
+                slots[slotIndex].bookedByStudentName =
+                    sessions[idx].studentName;
+                slots[slotIndex].subject = sessions[idx].title; // Hoặc lấy subject gốc
+                slots[slotIndex].requestNote =
+                    `Đang chờ đổi lịch từ buổi học cũ (${sessions[idx].date})`;
+
+                // Lưu lại bảng Slots
+                localStorage.setItem('tutor_app_slots', JSON.stringify(slots));
+            }
+            // ---------------------------------------------
+
+            sessions[idx].pendingChange = change;
+            localStorage.setItem(
+                'tutor_app_sessions',
+                JSON.stringify(sessions),
+            );
+            return true;
+        }
+        return false;
+    },
+
+    // --- LOGIC CHO TUTOR XỬ LÝ ---
+
+    // Lấy các session có yêu cầu thay đổi
+    getPendingChangeSessions: (tutorId: string): Session[] => {
+        const sessions = storage.getSessionsForTutor(tutorId);
+        return sessions.filter((s) => s.pendingChange !== undefined);
+    },
+
+    // Tutor duyệt yêu cầu
+    approveSessionChange: (sessionId: string): boolean => {
+        const sessions = storage.getSessions();
+        const slots = storage.getSlots();
+        const idx = sessions.findIndex((s) => s.id === sessionId);
+
+        if (idx !== -1 && sessions[idx].pendingChange) {
+            const session = sessions[idx];
+            const change = session.pendingChange!;
+
+            // Helper: Giải phóng Slot CŨ
+            const freeUpOldSlot = () => {
+                // Tìm slot ứng với thời gian hiện tại của session
+                const [start] = session.time.split(' - ');
+                const slotIndex = slots.findIndex(
+                    (s) =>
+                        s.tutorId === session.tutorId &&
+                        s.date === session.date &&
+                        s.startTime === start,
+                );
+                if (slotIndex !== -1) {
+                    slots[slotIndex].status = 'available';
+                    delete slots[slotIndex].bookedByStudentId;
+                    delete slots[slotIndex].bookedByStudentName;
+                    delete slots[slotIndex].subject;
+                    delete slots[slotIndex].requestNote;
+                    delete slots[slotIndex].teachingPeriodId;
+                }
+            };
+
+            // Helper: Chốt Slot MỚI (Từ Pending -> Booked)
+            const confirmNewSlot = () => {
+                if (!change.newDate || !change.newTime) return;
+                const [start] = change.newTime.split(' - ');
+                const slotIndex = slots.findIndex(
+                    (s) =>
+                        s.tutorId === session.tutorId &&
+                        s.date === change.newDate &&
+                        s.startTime === start,
+                );
+
+                if (slotIndex !== -1) {
+                    slots[slotIndex].status = 'booked';
+                    slots[slotIndex].requestNote = 'Đã đổi lịch thành công';
+                }
+            };
+
+            if (change.type === 'cancel') {
+                sessions[idx].status = 'cancelled-student';
+                sessions[idx].cancellationReason = change.reason;
+                freeUpOldSlot(); // Hủy thì trả slot cũ
+            } else if (change.type === 'reschedule') {
+                freeUpOldSlot(); // Trả slot cũ
+                confirmNewSlot(); // Chốt slot mới
+
+                // Cập nhật thông tin Session
+                if (change.newDate) sessions[idx].date = change.newDate;
+                if (change.newTime) sessions[idx].time = change.newTime;
+                sessions[idx].status = 'upcoming';
+            }
+
+            delete sessions[idx].pendingChange;
+
+            localStorage.setItem(
+                'tutor_app_sessions',
+                JSON.stringify(sessions),
+            );
+            localStorage.setItem('tutor_app_slots', JSON.stringify(slots));
+            return true;
+        }
+        return false;
+    },
+
+    // Tutor từ chối yêu cầu (Giữ nguyên lịch cũ)
+    rejectSessionChange: (sessionId: string): boolean => {
+        const sessions = storage.getSessions();
+        const slots = storage.getSlots();
+        const idx = sessions.findIndex((s) => s.id === sessionId);
+
+        if (idx !== -1 && sessions[idx].pendingChange) {
+            const change = sessions[idx].pendingChange!;
+
+            // --- LOGIC MỚI: TRẢ LẠI SLOT NẾU TỪ CHỐI ĐỔI ---
+            if (
+                change.type === 'reschedule' &&
+                change.newDate &&
+                change.newTime
+            ) {
+                const [start] = change.newTime.split(' - ');
+                const slotIndex = slots.findIndex(
+                    (s) =>
+                        s.tutorId === sessions[idx].tutorId &&
+                        s.date === change.newDate &&
+                        s.startTime === start,
+                );
+
+                // Reset slot về available
+                if (slotIndex !== -1) {
+                    slots[slotIndex].status = 'available';
+                    delete slots[slotIndex].bookedByStudentId;
+                    delete slots[slotIndex].bookedByStudentName;
+                    delete slots[slotIndex].subject;
+                    delete slots[slotIndex].requestNote;
+
+                    localStorage.setItem(
+                        'tutor_app_slots',
+                        JSON.stringify(slots),
+                    );
+                }
+            }
+            // ---------------------------------------------
+
+            delete sessions[idx].pendingChange;
+            localStorage.setItem(
+                'tutor_app_sessions',
+                JSON.stringify(sessions),
+            );
+            return true;
+        }
+        return false;
     },
 };
 
