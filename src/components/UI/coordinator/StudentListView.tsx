@@ -1,4 +1,6 @@
 import type { StudentProfile, StudentStatus } from '@/interfaces'; // Cập nhật import
+import { storage } from '@/utils/storage';
+import { useEffect } from 'react';
 
 const getStatusBadge = (status: StudentStatus) => {
     let colors = '';
@@ -34,6 +36,13 @@ const StudentListView: React.FC<StudentListViewProps> = ({
     students,
     onViewDetails,
 }) => {
+    const registerDate =
+        storage.getRegistrationByStudentId(students[0]?.id || '')?.createdAt ||
+        '';
+    useEffect(() => {
+        console.log('Students data:', students);
+        console.log('Register date sample:', registerDate);
+    }, [students, registerDate]);
     return (
         <div className='h-full'>
             <h1 className='mb-6 text-3xl font-bold text-gray-800'>
@@ -81,7 +90,9 @@ const StudentListView: React.FC<StudentListViewProps> = ({
                                     </p>
                                 </td>
                                 <td className='px-4 py-3 text-sm text-gray-600'>
-                                    {student.registrationDate}
+                                    {storage.getRegistrationByStudentId(
+                                        student.id,
+                                    )?.createdAt || ''}
                                 </td>
                                 <td className='px-4 py-3'>
                                     {getStatusBadge(student.status)}

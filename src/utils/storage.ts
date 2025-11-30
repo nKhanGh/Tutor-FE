@@ -379,7 +379,7 @@ const SEED_USERS: (User | TutorProfile | StudentProfile)[] = [
         id: 'f1',
         username: 'faculty',
         password: 'faculty_password',
-        name: 'Faculty Member',
+        name: 'Khoa KH-KT MT',
         role: 'faculty',
         avatarBg: 'bg-gray-600',
     },
@@ -1052,11 +1052,48 @@ export const storage = {
             .getUsers()
             .filter((u) => u.role === 'student') as StudentProfile[],
 
+    countStudents: (): number => {
+        return storage.getAllStudents().length;
+    },
+
+    countTutors: (): number => {
+        return storage.getAllTutors().length;
+    },
+
+    countNotHandledStudent: (): number => {
+        const regs: ProgramRegistration[] = get(KEYS.REGISTRATIONS, []);
+        const teachingPeriod: TeachingPeriod[] = get(KEYS.TEACHING_PERIODS, []);
+        const notMatchedStudents = regs.filter((reg) => {
+            const hasPeriod = teachingPeriod.some(
+                (period) => period.studentId === reg.studentId,
+            );
+            return !hasPeriod;
+        });
+        console.log('Not matched students:', notMatchedStudents);
+        return notMatchedStudents.length;
+    },
+
+    getNotHandledStudents: (): ProgramRegistration[] => {
+        const regs: ProgramRegistration[] = get(KEYS.REGISTRATIONS, []);
+        const teachingPeriod: TeachingPeriod[] = get(KEYS.TEACHING_PERIODS, []);
+        const notMatchedStudents = regs.filter((reg) => {
+            const hasPeriod = teachingPeriod.some(
+                (period) => period.studentId === reg.studentId,
+            );
+            return !hasPeriod;
+        });
+        return notMatchedStudents;
+    },
+
+    // getStudent
     getRegistrationByStudentId: (
         studentId: string,
     ): ProgramRegistration | undefined => {
         const regs: ProgramRegistration[] = get(KEYS.REGISTRATIONS, []);
         return regs.find((r) => r.studentId === studentId);
+    },
+    getAllRegistrations: (): ProgramRegistration[] => {
+        return get(KEYS.REGISTRATIONS, []);
     },
     deleteRegistrationByStudentId: (studentId: string) => {
         const regs: ProgramRegistration[] = get(KEYS.REGISTRATIONS, []);
@@ -1334,6 +1371,36 @@ export const storage = {
             return docs[index].isSaved; // Trả về trạng thái mới
         }
         return false;
+    },
+
+    incrementDocumentDownloads: (docId: number) => {
+        const docs = storage.getDocuments();
+        const index = docs.findIndex((d) => d.id === docId);
+        if (index !== -1) {
+            docs[index].downloads += 1;
+            set(KEYS.DOCUMENTS, docs);
+        }
+    },
+
+    incrementDocumentViews: (docId: number) => {
+        const docs = storage.getDocuments();
+        const index = docs.findIndex((d) => d.id === docId);
+        if (index !== -1) {
+            docs[index].views += 1;
+            set(KEYS.DOCUMENTS, docs);
+        }
+    },
+
+    incrementDocumentRating: (docId: number, newRating: number) => {
+        const docs = storage.getDocuments();
+        const index = docs.findIndex((d) => d.id === docId);
+        if (index !== -1) {
+            // Cập nhật rating trung bình
+            const currentRating = docs[index].rating;
+            const updatedRating = (currentRating + newRating) / 2; // Cách tính đơn giản
+            docs[index].rating = parseFloat(updatedRating.toFixed(2)); // Giữ 2 chữ số thập phân
+            set(KEYS.DOCUMENTS, docs);
+        }
     },
 
     // Upload tài liệu mới (giả lập)

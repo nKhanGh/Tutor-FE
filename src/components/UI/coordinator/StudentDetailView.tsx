@@ -1,5 +1,7 @@
 import { ArrowLeft, BarChart } from 'lucide-react';
-import type { StudentProfile } from '@/interfaces'; // Cập nhật import
+import type { StudentProfile, TeachingPeriod } from '@/interfaces'; // Cập nhật import
+import { useEffect, useState } from 'react';
+import { storage } from '@/utils/storage';
 
 interface StudentDetailViewProps {
     student: StudentProfile | null; // Cập nhật type
@@ -11,11 +13,52 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
     onBack,
 }) => {
     // Mock stats trực tiếp ở đây thay vì import
-    const stats = {
-        tutors: 2,
-        sessions: 15,
-        courses: 4,
-    };
+    const [stats, setStats] = useState<{
+        courses: number;
+        tutors: number;
+        sessions: number;
+    } | null>(null);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (student) {
+                // Lấy dữ liệu Sessions
+                const allSessions = storage.getSessionsForStudent(student.id);
+                const allPeriodsStr = localStorage.getItem(
+                    'tutor_app_teaching_periods',
+                );
+                const allPeriods: TeachingPeriod[] = allPeriodsStr
+                    ? JSON.parse(allPeriodsStr)
+                    : [];
+                const completedCoursesCount = allPeriods.filter(
+                    (p) =>
+                        p.studentId === student.id && p.status === 'finished',
+                ).length;
+
+                // Đếm số tutor duy nhất
+                const uniqueTutors = new Set(
+                    allPeriods
+                        .filter((s) => s.studentId === student.id)
+                        .map((s) => s.tutorId),
+                ).size;
+                // Đếm session trong tháng hiện tại
+                const currentMonth = new Date().getMonth() + 1;
+                const monthSessions = allSessions.filter((s) => {
+                    const m = s.date.split(/[-/]/).map(Number)[1];
+                    return m === currentMonth;
+                }).length;
+
+                // Lọc Upcoming Sessions
+
+                setStats({
+                    courses: completedCoursesCount,
+                    tutors: uniqueTutors,
+                    sessions: monthSessions,
+                });
+            }
+        }, 0);
+        return () => clearTimeout(timer);
+    }, []);
 
     return (
         <div className='h-full'>
@@ -33,7 +76,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
             <div className='overflow-hidden rounded-2xl bg-white shadow-sm'>
                 <div className='flex items-center gap-4 bg-gradient-to-br from-[#00C0EF] to-[#0795DF] p-6'>
                     <div className='flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-white text-3xl font-bold text-blue-600'>
-                        {student?.name.charAt(0)}
+                        {student?.name.split(' ').slice(-1)[0][0].toUpperCase()}
                     </div>
                     <div>
                         <h2 className='text-2xl font-bold text-white'>
@@ -107,7 +150,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                     <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
                         <div className='rounded-xl bg-blue-100 p-4 text-center'>
                             <p className='text-3xl font-bold text-blue-600'>
-                                {stats.tutors}
+                                {stats?.tutors}
                             </p>
                             <p className='font-medium text-blue-600'>
                                 Tutor hiện tại
@@ -115,7 +158,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                         </div>
                         <div className='rounded-xl bg-yellow-100 p-4 text-center'>
                             <p className='text-3xl font-bold text-yellow-700'>
-                                {stats.sessions}
+                                {stats?.sessions}
                             </p>
                             <p className='font-medium text-yellow-700'>
                                 Buổi học
@@ -123,7 +166,7 @@ const StudentDetailView: React.FC<StudentDetailViewProps> = ({
                         </div>
                         <div className='rounded-xl bg-green-100 p-4 text-center'>
                             <p className='text-3xl font-bold text-green-600'>
-                                {stats.courses}
+                                {stats?.courses}
                             </p>
                             <p className='font-medium text-green-600'>
                                 Khóa học hoàn thành

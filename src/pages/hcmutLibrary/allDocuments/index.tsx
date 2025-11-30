@@ -50,6 +50,31 @@ const AllDocuments = () => {
         });
     }, [activeCategory, searchTerm, documents]);
 
+    const handleDownload = (docId: number) => {
+        storage.incrementDocumentDownloads(docId);
+        setDocuments((prevDocs) =>
+            prevDocs.map((doc) =>
+                doc.id === docId
+                    ? { ...doc, downloads: doc.downloads + 1 }
+                    : doc,
+            ),
+        );
+        handleAction(
+            'tải xuống',
+            documents.find((d) => d.id === docId)?.title || '',
+        );
+    };
+
+    const handleView = (docId: number) => {
+        storage.incrementDocumentViews(docId);
+        setDocuments((prevDocs) =>
+            prevDocs.map((doc) =>
+                doc.id === docId ? { ...doc, views: doc.views + 1 } : doc,
+            ),
+        );
+        handleAction('xem', documents.find((d) => d.id === docId)?.title || '');
+    };
+
     const handleAction = (action: string, title: string) => {
         showSuccessNotification(`Đã ${action} tài liệu: ${title}`);
     };
@@ -215,10 +240,7 @@ const AllDocuments = () => {
                                             <div className='flex gap-3 border-t border-gray-50 pt-2'>
                                                 <button
                                                     onClick={() =>
-                                                        handleAction(
-                                                            'mở',
-                                                            doc.title,
-                                                        )
+                                                        handleView(doc.id)
                                                     }
                                                     className='flex items-center gap-2 rounded-lg bg-[#0795DF] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-600'
                                                 >
@@ -227,10 +249,7 @@ const AllDocuments = () => {
                                                 </button>
                                                 <button
                                                     onClick={() =>
-                                                        handleAction(
-                                                            'tải xuống',
-                                                            doc.title,
-                                                        )
+                                                        handleDownload(doc.id)
                                                     }
                                                     className='flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50'
                                                 >
