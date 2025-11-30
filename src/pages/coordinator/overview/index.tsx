@@ -1,21 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '@/components/layouts/Sidebar';
-import {
-    Users,
-    UserCheck,
-    Bell,
-    Calendar,
-    BookOpen,
-    Clock,
-} from 'lucide-react';
-import {
-    mockCoordinatorStats,
-    mockPendingTutors,
-    mockPendingRequests,
-} from '@/interfaces/Coordinator';
+import { Users, UserCheck, Bell, Clock } from 'lucide-react';
+import { mockCoordinatorStats } from '@/interfaces/Coordinator';
+import { storage } from '@/utils/storage';
 
 const Overview = () => {
     const navigate = useNavigate();
+
+    const pendingRequests = storage.getNotHandledStudents();
 
     const getStatStyle = (key: string) => {
         switch (key) {
@@ -64,7 +56,7 @@ const Overview = () => {
                         onClick={() =>
                             navigate('/coordinator/match-tutor-student')
                         }
-                        className='flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white shadow-sm transition-colors hover:bg-blue-600'
+                        className='flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-primary to-blue-secondary px-4 py-2 font-medium text-white shadow-sm transition-colors hover:bg-blue-600'
                     >
                         <span>+</span> Ghép cặp Tutor - Sinh viên
                     </button>
@@ -99,117 +91,64 @@ const Overview = () => {
 
                 {/* --- MAIN CONTENT --- */}
                 <div className='grid grid-cols-1 gap-8 lg:grid-cols-12'>
-                    {/* CỘT TRÁI: Tutor mới cần duyệt */}
-                    <div className='rounded-xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-5'>
-                        <div className='mb-4 flex items-center justify-between'>
-                            <h2 className='text-lg font-bold text-gray-800'>
-                                Tutor mới cần duyệt
-                            </h2>
-                            <button
-                                onClick={() =>
-                                    navigate('/coordinator/tutor-management')
-                                }
-                                className='cursor-pointer text-sm text-blue-500 hover:underline'
-                            >
-                                Xem tất cả
-                            </button>
-                        </div>
-
-                        {/* Danh sách Tutor cần duyệt */}
-                        <div className='flex flex-col gap-4'>
-                            {/* 👇 SỬ DỤNG INDEX ĐỂ GÁN ID 4 VÀ 5 */}
-                            {mockPendingTutors.map((tutor, index) => {
-                                // Logic: Nếu là người đầu tiên (index 0) -> targetId = 4
-                                //        Nếu là người thứ hai (index 1) -> targetId = 5
-                                const targetId = index === 0 ? 4 : 5;
-
-                                return (
-                                    <div
-                                        key={tutor.id}
-                                        onClick={() =>
-                                            navigate(
-                                                '/coordinator/tutor-management',
-                                                {
-                                                    state: {
-                                                        openProfileId: targetId, // Sử dụng targetId đã tính toán ở trên
-                                                        tab: 'pending',
-                                                    },
-                                                },
-                                            )
-                                        }
-                                        className='cursor-pointer rounded-lg border border-gray-100 p-4 transition-colors hover:bg-gray-50'
-                                    >
-                                        {/* ... nội dung card tutor giữ nguyên ... */}
-                                        <div className='flex items-start justify-between'>
-                                            <div>
-                                                <h3 className='font-semibold text-gray-800'>
-                                                    {tutor.name}
-                                                </h3>
-                                                <div className='mt-1 flex items-center gap-2 text-xs text-gray-500'>
-                                                    <Calendar size={14} />
-                                                    <span>
-                                                        Đăng ký: {tutor.date}
-                                                    </span>
-                                                </div>
-                                                <div className='mt-1 flex items-center gap-2 text-xs text-gray-500'>
-                                                    <BookOpen size={14} />
-                                                    {/* Lưu ý: Kiểm tra lại tên trường 'major' hoặc 'expertise' trong data của bạn */}
-                                                    <span>
-                                                        Chuyên ngành:{' '}
-                                                        {tutor.major}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <button className='rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 transition-colors hover:bg-green-200'>
-                                                Xem hồ sơ
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
                     {/* CỘT PHẢI: Yêu cầu cần xử lý */}
                     <div className='rounded-xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-7'>
                         <div className='mb-4 flex items-center justify-between'>
                             <h2 className='text-lg font-bold text-gray-800'>
-                                Yêu cầu cần xử lý
+                                Ghép cặp cần xử lý
                             </h2>
                         </div>
 
                         <div className='flex flex-col gap-4'>
-                            {mockPendingRequests.map((req) => (
-                                <div
-                                    key={req.id}
-                                    onClick={() =>
-                                        navigate(
-                                            '/coordinator/match-tutor-student',
-                                            { state: { targetId: req.id } },
-                                        )
-                                    }
-                                    className='flex cursor-pointer items-start gap-4 rounded-lg border-b border-gray-100 p-3 transition-colors last:border-0 hover:bg-gray-50'
-                                >
+                            {pendingRequests.length > 0 &&
+                                pendingRequests.map((req) => (
                                     <div
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold text-white ${req.id === 1 ? 'bg-blue-500' : req.id === 2 ? 'bg-green-500' : 'bg-orange-500'}`}
+                                        key={req.id}
+                                        onClick={() =>
+                                            navigate(
+                                                '/coordinator/match-tutor-student',
+                                                { state: { targetId: req.id } },
+                                            )
+                                        }
+                                        className='flex cursor-pointer items-start gap-4 rounded-lg border-b border-gray-100 p-3 transition-colors last:border-0 hover:bg-gray-50'
                                     >
-                                        {req.name.split(' ').pop()?.charAt(0)}
-                                    </div>
+                                        <div
+                                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold text-white ${storage.getUserById(req.studentId)?.avatarBg}`}
+                                        >
+                                            {req.studentName
+                                                .split(' ')
+                                                .pop()
+                                                ?.charAt(0)}
+                                        </div>
 
-                                    <div className='flex-1'>
-                                        <h3 className='text-sm font-semibold text-gray-800'>
-                                            {req.name}
-                                        </h3>
-                                        <p className='mt-1 line-clamp-1 text-xs text-gray-500'>
-                                            {req.request}
-                                        </p>
-                                        <div className='mt-2 flex items-center gap-2 text-xs text-gray-400'>
-                                            <Clock size={12} />
-                                            <span>{req.time}</span>
+                                        <div className='flex-1'>
+                                            <h3 className='text-sm font-semibold text-gray-800'>
+                                                {req.studentName}
+                                            </h3>
+                                            <p className='mt-1 line-clamp-1 text-xs text-gray-500'>
+                                                Muốn tìm giảng viên cho môn học{' '}
+                                                {req.subjects.reduce(
+                                                    (acc, sub) =>
+                                                        acc +
+                                                        (acc ? ', ' : '') +
+                                                        sub,
+                                                    '',
+                                                )}
+                                                .
+                                            </p>
+                                            <div className='mt-2 flex items-center gap-2 text-xs text-gray-400'>
+                                                <Clock size={12} />
+                                                Lịch học mong muốn:
+                                                <span>{req.availability}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            {pendingRequests.length === 0 && (
+                                <p className='mt-4 text-center text-gray-500'>
+                                    Không có yêu cầu cần xử lý.
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>

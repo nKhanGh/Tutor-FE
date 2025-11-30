@@ -43,7 +43,6 @@ const StudentOverview = () => {
             if (user) {
                 // Lấy dữ liệu Sessions
                 const allSessions = storage.getSessionsForStudent(user.id);
-
                 const allPeriodsStr = localStorage.getItem(
                     'tutor_app_teaching_periods',
                 );
@@ -55,8 +54,11 @@ const StudentOverview = () => {
                 ).length;
 
                 // Đếm số tutor duy nhất
-                const uniqueTutors = new Set(allSessions.map((s) => s.tutorId))
-                    .size;
+                const uniqueTutors = new Set(
+                    allPeriods
+                        .filter((s) => s.studentId === user.id)
+                        .map((s) => s.tutorId),
+                ).size;
                 // Đếm session trong tháng hiện tại
                 const currentMonth = new Date().getMonth() + 1;
                 const monthSessions = allSessions.filter((s) => {

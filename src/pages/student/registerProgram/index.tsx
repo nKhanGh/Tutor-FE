@@ -162,7 +162,6 @@ const RegisterProgram: React.FC = () => {
                     registrationData?.createdAt ||
                     new Date().toLocaleDateString('vi-VN'),
             };
-
             storage.saveRegistration(newReg);
             setRegistrationData(newReg);
             setIsRegistered(true);
@@ -693,7 +692,7 @@ const RegisterProgram: React.FC = () => {
                                         <textarea
                                             id='additionalInfo'
                                             rows={3}
-                                            className={`w-full resize-none rounded-lg border p-3 outline-none focus:ring-2 focus:ring-blue-500 ${errors.challenges ? 'border-red-500' : 'border-gray-300'}`}
+                                            className={`w-full resize-none rounded-lg border border-gray-300 p-3 outline-none focus:ring-2 focus:ring-blue-500`}
                                             placeholder='Mô tả thêm thông tin bạn muốn cung cấp...'
                                             value={formData.additionalInfo}
                                             onChange={(e) =>

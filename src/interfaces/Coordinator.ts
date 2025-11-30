@@ -1,3 +1,5 @@
+import { storage } from '@/utils/storage';
+
 // --- ĐỊNH NGHĨA "LUẬT" (TYPES) ---
 export type StatItem = {
     key: string; // Dùng key này để bên Index biết nên hiện icon gì
@@ -23,9 +25,21 @@ export type PendingRequest = {
 
 // --- DỮ LIỆU GIẢ LẬP (MOCK DATA) ---
 export const mockCoordinatorStats: StatItem[] = [
-    { key: 'student_support', label: 'Sinh viên hỗ trợ', value: 4 },
-    { key: 'tutor_active', label: 'Tutor hiện tại', value: 15 },
-    { key: 'pending_match', label: 'Ghép cặp chưa xử lý', value: 3 },
+    {
+        key: 'student_support',
+        label: 'Sinh viên hỗ trợ',
+        value: storage.countStudents(),
+    },
+    {
+        key: 'tutor_active',
+        label: 'Tutor hiện tại',
+        value: storage.countTutors(),
+    },
+    {
+        key: 'pending_match',
+        label: 'Ghép cặp chưa xử lý',
+        value: storage.countNotHandledStudent(),
+    },
 ];
 
 export const mockPendingTutors: PendingTutor[] = [

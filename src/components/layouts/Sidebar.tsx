@@ -146,14 +146,20 @@ const Sidebar = () => {
         ];
     }
 
-    const displayRole =
-        role === 'student'
-            ? 'Sinh viên'
-            : role === 'tutor'
-              ? 'Tutor'
-              : role === 'coordinator'
-                ? 'Điều phối viên'
-                : 'Người dùng';
+    const displayRole = () => {
+        switch (role) {
+            case 'student':
+                return 'Sinh viên';
+            case 'tutor':
+                return 'Tutor';
+            case 'coordinator':
+                return 'Điều phối viên';
+            case 'faculty':
+                return 'Khoa / Bộ môn';
+            default:
+                return 'Người dùng';
+        }
+    };
 
     return (
         <div className='fixed left-0 top-0 z-40 flex h-full w-[80px] flex-col items-center gap-6 border-r-[2px] border-gray-200 bg-white py-[25px] font-bevietnam md:w-[260px] md:p-[25px]'>
@@ -211,7 +217,7 @@ const Sidebar = () => {
                         {user?.name || 'Guest'}
                     </div>
                     <div className='text-[11px] font-semibold uppercase text-blue-500'>
-                        {displayRole}
+                        {displayRole()}
                     </div>
                 </div>
             </div>

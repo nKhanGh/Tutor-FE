@@ -1,5 +1,8 @@
 import Sidebar from '@/components/layouts/Sidebar';
-import { useNotification } from '@/hooks/useNotification';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { FileDown, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import {
     BarChart,
     Bar,
@@ -91,13 +94,70 @@ const topStudents = [
 ];
 
 const Faculty = () => {
-    const { showSuccessNotification } = useNotification();
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportPDF = async () => {
+        const element = document.getElementById('report-content');
+        if (!element) return;
+
+        setIsExporting(true);
+
+        try {
+            // Chờ một chút để đảm bảo UI render xong nếu có thay đổi
+            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            const canvas = await html2canvas(element, {
+                scale: 2, // Tăng độ phân giải ảnh (2x) cho sắc nét
+                useCORS: true, // Cho phép load ảnh cross-origin nếu có
+                logging: false,
+                backgroundColor: '#f4f7fc', // Màu nền khớp với bg
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+
+            // Khởi tạo PDF khổ A4
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+            });
+
+            const imgWidth = 210; // Chiều rộng A4 (mm)
+            const pageHeight = 297; // Chiều cao A4 (mm)
+
+            // Tính chiều cao ảnh dựa trên tỷ lệ gốc
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            // Vẽ ảnh trang đầu tiên
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            // Nếu nội dung dài hơn 1 trang, thêm trang mới (logic cơ bản)
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            // Lưu file
+            pdf.save(`Bao_cao_thong_ke_tong_quan.pdf`);
+        } catch (error) {
+            console.error('Lỗi khi xuất PDF:', error);
+            alert('Có lỗi xảy ra khi tạo file PDF. Vui lòng thử lại.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     return (
         <div className='flex min-h-screen bg-[#F9FAFB] text-gray-600'>
             <Sidebar />
 
-            <div className='ml-[260px] w-full p-8'>
+            <div className='ml-[260px] w-full p-8' id='report-content'>
                 {/* 1. HEADER & FILTERS */}
                 <div className='mb-8 flex flex-col gap-6'>
                     <div className='flex items-start justify-between'>
@@ -110,14 +170,18 @@ const Faculty = () => {
                             </p>
                         </div>
                         <button
-                            onClick={() =>
-                                showSuccessNotification(
-                                    'Báo cáo đã được xuất thành công!',
-                                )
-                            }
-                            className='rounded-lg bg-[#0099D6] px-5 py-2 font-medium text-white shadow-sm transition-colors hover:bg-[#0088C0]'
+                            onClick={handleExportPDF}
+                            disabled={isExporting}
+                            className='flex gap-2 rounded-lg bg-[#0099D6] px-5 py-2 font-medium text-white shadow-sm transition-colors hover:bg-[#0088C0]'
                         >
-                            Xuất báo cáo
+                            {isExporting ? (
+                                <Loader2 size={20} className='animate-spin' />
+                            ) : (
+                                <FileDown size={20} />
+                            )}
+                            <span className='hidden sm:inline'>
+                                {isExporting ? 'Đang tạo...' : 'Xuất Báo Cáo'}
+                            </span>
                         </button>
                     </div>
 

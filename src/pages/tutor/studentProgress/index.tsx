@@ -442,8 +442,7 @@ const StudentProgressPage = () => {
         return () => clearTimeout(timer);
     }, [user]);
 
-    // 2. Load chi tiết Sessions khi chọn một Period
-    useEffect(() => {
+    const fetchSessions = () => {
         if (selectedPeriodId && user) {
             const timer = setTimeout(() => {
                 const selectedPeriod = periods.find(
@@ -470,6 +469,11 @@ const StudentProgressPage = () => {
             }, 0);
             return () => clearTimeout(timer);
         }
+    };
+
+    // 2. Load chi tiết Sessions khi chọn một Period
+    useEffect(() => {
+        fetchSessions();
     }, [selectedPeriodId, user, periods]);
 
     const handleSelectPeriod = (id: string) => {
@@ -511,6 +515,7 @@ const StudentProgressPage = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 teachingPeriodId={selectedPeriodId || undefined}
+                onSuccess={fetchSessions}
             />
         </>
     );

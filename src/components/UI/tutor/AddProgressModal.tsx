@@ -109,6 +109,8 @@ const AddProgressModal = ({
                     evaluation: evaluation,
                 };
 
+                console.log('Updated session:', allSessions[sessionIndex]);
+
                 // Lưu ngược lại localStorage
                 localStorage.setItem(
                     'tutor_app_sessions',
