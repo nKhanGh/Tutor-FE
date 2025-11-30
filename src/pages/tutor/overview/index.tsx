@@ -13,10 +13,12 @@ import {
     Clock,
     ChevronDown,
     ChevronUp,
-    BookOpen,
-    Mail,
-    MoreHorizontal,
     Info,
+    CalendarClock,
+    CalendarX,
+    ArrowRight,
+    MessageSquare,
+    BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { storage } from '@/utils/storage';
@@ -29,7 +31,27 @@ import type {
     TeachingPeriod,
 } from '@/interfaces';
 
-// Interface cho State thống kê
+// --- TYPE DEFINITIONS (LOCAL) ---
+// Định nghĩa lại cấu trúc PendingChange để dùng trong file này
+interface PendingChange {
+    type: 'cancel' | 'reschedule';
+    newDate?: string;
+    newTime?: string;
+    reason: string;
+    createdAt: string;
+}
+
+// Mở rộng Session interface để bao gồm pendingChange
+interface ExtendedSession extends Session {
+    pendingChange?: PendingChange;
+}
+
+// Mở rộng Storage interface để TypeScript nhận diện các hàm mới
+interface ExtendedStorage {
+    approveSessionChange: (id: string) => boolean;
+    rejectSessionChange: (id: string) => boolean;
+}
+
 interface OverviewStats {
     activeStudentCount: number;
     sessionCount: number;
@@ -42,7 +64,7 @@ const Overview = () => {
     const { user } = useAuth();
     const { showSuccessNotification } = useNotification();
 
-    // Modal States
+    // --- STATES ---
     const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
     const [isStudentListModalOpen, setIsStudentListModalOpen] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -50,13 +72,22 @@ const Overview = () => {
         null,
     );
 
-    // Data States
     const [pendingSlots, setPendingSlots] = useState<AvailabilitySlot[]>([]);
-    const [upcomingSessions, setUpcomingSessions] = useState<Session[]>([]);
-    const [activeStudents, setActiveStudents] = useState<TeachingPeriod[]>([]);
 
-    const [showAllPending, setShowAllPending] = useState(false);
+    // Sử dụng ExtendedSession cho state
+    const [rescheduleRequests, setRescheduleRequests] = useState<
+        ExtendedSession[]
+    >([]);
+    const [cancelRequests, setCancelRequests] = useState<ExtendedSession[]>([]);
+    const [upcomingSessions, setUpcomingSessions] = useState<ExtendedSession[]>(
+        [],
+    );
+
+    const [activeStudents, setActiveStudents] = useState<TeachingPeriod[]>([]);
     const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+    const [activeRequestTab, setActiveRequestTab] = useState<
+        'booking' | 'reschedule' | 'cancel'
+    >('booking');
 
     const [stats, setStats] = useState<OverviewStats>({
         activeStudentCount: 0,
@@ -66,40 +97,49 @@ const Overview = () => {
         pendingCount: 0,
     });
 
+    // --- FETCH DATA ---
     const fetchData = useCallback(() => {
         if (!user) return;
 
         setTimeout(() => {
-            // Lấy dữ liệu từ storage
             const allSlots = storage.getSlotsByTutor(user.id);
-            const allSessions = storage.getSessionsForTutor(user.id);
+            // Ép kiểu Session[] thành ExtendedSession[] ngay từ đầu
+            const allSessions = storage.getSessionsForTutor(
+                user.id,
+            ) as ExtendedSession[];
             const activePeriods = storage.getActiveTeachingPeriods(user.id);
 
-            // Filter Pending Slots
-            const pending = allSlots.filter((s) => s.status === 'pending');
+            // 1. Pending Booking
+            const pendingBooking = allSlots.filter(
+                (s) => s.status === 'pending',
+            );
 
-            // Filter Upcoming Sessions
+            // 2. Pending Changes (Type safe filtering)
+            const sessionsWithChanges = allSessions.filter(
+                (s) => s.pendingChange !== undefined,
+            );
+            const pendingReschedule = sessionsWithChanges.filter(
+                (s) => s.pendingChange?.type === 'reschedule',
+            );
+            const pendingCancel = sessionsWithChanges.filter(
+                (s) => s.pendingChange?.type === 'cancel',
+            );
+
+            // 3. Upcoming
             const upcoming = allSessions
                 .filter(
-                    (s) => s.status === 'upcoming' || s.status === 'pending',
+                    (s) =>
+                        (s.status === 'upcoming' || s.status === 'pending') &&
+                        !s.pendingChange,
                 )
                 .sort((a, b) => {
-                    // So sánh ngày trước
                     const dateA = new Date(a.date).getTime();
                     const dateB = new Date(b.date).getTime();
-                    if (dateA !== dateB) {
-                        return dateA - dateB;
-                    }
-
-                    // Nếu cùng ngày, so sánh giờ bắt đầu (format "HH:MM - HH:MM")
-                    // Chuỗi time luôn được format chuẩn HH:MM nên so sánh chuỗi là chính xác
-                    const startTimeA = a.time.split(' - ')[0] || '';
-                    const startTimeB = b.time.split(' - ')[0] || '';
-
-                    return startTimeA.localeCompare(startTimeB);
+                    if (dateA !== dateB) return dateA - dateB;
+                    return a.time.localeCompare(b.time);
                 });
 
-            // Tính Rating
+            // 4. Stats
             const ratedSessions = allSessions.filter((s) => s.review);
             const totalRating = ratedSessions.reduce(
                 (sum, s) => sum + (s.review?.rating || 0),
@@ -111,9 +151,14 @@ const Overview = () => {
                           (totalRating / ratedSessions.length).toFixed(1),
                       )
                     : 0;
+            const totalPending =
+                pendingBooking.length +
+                pendingReschedule.length +
+                pendingCancel.length;
 
-            // Update State
-            setPendingSlots(pending);
+            setPendingSlots(pendingBooking);
+            setRescheduleRequests(pendingReschedule);
+            setCancelRequests(pendingCancel);
             setUpcomingSessions(upcoming);
             setActiveStudents(activePeriods);
 
@@ -124,7 +169,7 @@ const Overview = () => {
                 sessionCount: allSessions.length,
                 avgRating: avgRating,
                 upcomingCount: upcoming.length,
-                pendingCount: pending.length,
+                pendingCount: totalPending,
             });
         }, 0);
     }, [user]);
@@ -133,8 +178,8 @@ const Overview = () => {
         fetchData();
     }, [fetchData]);
 
-    // Handlers
-    const handleApprove = (slot: AvailabilitySlot) => {
+    // --- HANDLERS ---
+    const handleApproveBooking = (slot: AvailabilitySlot) => {
         if (storage.approveSlot(slot.id)) {
             showSuccessNotification(
                 `Đã chấp nhận lịch hẹn môn ${slot.subject}`,
@@ -143,7 +188,7 @@ const Overview = () => {
         }
     };
 
-    const handleReject = (slotId: string) => {
+    const handleRejectBooking = (slotId: string) => {
         if (window.confirm('Bạn có chắc muốn từ chối yêu cầu này?')) {
             if (storage.rejectSlot(slotId)) {
                 showSuccessNotification('Đã từ chối yêu cầu.');
@@ -152,12 +197,260 @@ const Overview = () => {
         }
     };
 
+    const handleProcessChange = (
+        sessionId: string,
+        action: 'approve' | 'reject',
+    ) => {
+        let success = false;
+        // Cast storage để TypeScript biết các method này tồn tại
+        const extendedStorage = storage as unknown as ExtendedStorage;
+
+        if (action === 'approve') {
+            if (typeof extendedStorage.approveSessionChange === 'function') {
+                success = extendedStorage.approveSessionChange(sessionId);
+                if (success)
+                    showSuccessNotification('Đã duyệt yêu cầu thay đổi.');
+            }
+        } else {
+            if (!window.confirm('Bạn muốn từ chối yêu cầu này?')) return;
+            if (typeof extendedStorage.rejectSessionChange === 'function') {
+                success = extendedStorage.rejectSessionChange(sessionId);
+                if (success) showSuccessNotification('Đã từ chối thay đổi.');
+            }
+        }
+        if (success) fetchData();
+    };
+
     const handleViewDetail = (session: Session) => {
         setSelectedSession(session);
         setIsDetailModalOpen(true);
     };
 
-    // Stat Cards Configuration
+    const renderAvatar = (name: string, url?: string, bg?: string) => (
+        <div
+            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-100 text-sm font-bold text-white ${!url ? bg || 'bg-gray-400' : ''}`}
+        >
+            {url ? (
+                <img
+                    src={url}
+                    alt='Avatar'
+                    className='h-full w-full object-cover'
+                />
+            ) : (
+                getUserInitials(name)
+            )}
+        </div>
+    );
+
+    // --- RENDER CONTENT FUNCTIONS ---
+
+    const renderBookingTab = () => {
+        if (pendingSlots.length === 0) {
+            return (
+                <div className='rounded-lg border border-dashed py-8 text-center text-sm text-gray-400'>
+                    Không có yêu cầu đặt lịch mới.
+                </div>
+            );
+        }
+        return pendingSlots.map((slot) => {
+            const studentInfo = storage.getUserById(
+                slot.bookedByStudentId || '',
+            );
+            return (
+                <div
+                    key={slot.id}
+                    className='animate-fade-in-up flex flex-col gap-3 border-b border-gray-100 pb-4 last:border-0 last:pb-0'
+                >
+                    <div className='flex items-center gap-3'>
+                        {renderAvatar(
+                            slot.bookedByStudentName || '',
+                            studentInfo?.avatar,
+                            studentInfo?.avatarBg,
+                        )}
+                        <div className='flex-1 overflow-hidden'>
+                            <p className='truncate text-sm font-bold text-gray-800'>
+                                {slot.bookedByStudentName}
+                            </p>
+                            <div className='flex items-center gap-1 text-xs text-gray-500'>
+                                <Clock size={12} /> {slot.date} |{' '}
+                                {slot.startTime}
+                            </div>
+                        </div>
+                    </div>
+                    <div className='rounded-lg border-l-4 border-blue-400 bg-blue-50 p-3 text-xs text-gray-700'>
+                        <span className='font-semibold'>Môn:</span>{' '}
+                        {slot.subject} <br />
+                        <span className='italic'>
+                            "{slot.requestNote || 'Mong thầy duyệt'}"
+                        </span>
+                    </div>
+                    <div className='mt-1 flex justify-end gap-2'>
+                        <button
+                            onClick={() => handleApproveBooking(slot)}
+                            className='flex items-center gap-1 rounded-lg bg-green-50 px-3 py-1.5 text-xs font-bold text-green-600 hover:bg-green-100'
+                        >
+                            <Check size={14} /> Duyệt
+                        </button>
+                        <button
+                            onClick={() => handleRejectBooking(slot.id)}
+                            className='flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100'
+                        >
+                            <X size={14} /> Từ chối
+                        </button>
+                    </div>
+                </div>
+            );
+        });
+    };
+
+    const renderRescheduleTab = () => {
+        if (rescheduleRequests.length === 0) {
+            return (
+                <div className='rounded-lg border border-dashed py-8 text-center text-sm text-gray-400'>
+                    Không có yêu cầu đổi lịch.
+                </div>
+            );
+        }
+        return rescheduleRequests.map((session) => {
+            const change = session.pendingChange; // Safe access
+            const studentInfo = storage.getUserById(session.studentId);
+            return (
+                <div
+                    key={session.id}
+                    className='animate-fade-in-up flex flex-col gap-3 border-b border-gray-100 pb-4 last:border-0 last:pb-0'
+                >
+                    <div className='flex items-center gap-3'>
+                        {renderAvatar(
+                            session.studentName,
+                            studentInfo?.avatar,
+                            studentInfo?.avatarBg,
+                        )}
+                        <div className='flex-1'>
+                            <p className='text-sm font-bold text-gray-800'>
+                                {session.studentName}
+                            </p>
+                            <p className='text-xs text-gray-500'>
+                                {session.title}
+                            </p>
+                        </div>
+                        <div className='rounded-full bg-orange-100 p-1.5 text-orange-600'>
+                            <CalendarClock size={16} />
+                        </div>
+                    </div>
+
+                    <div className='rounded-lg border border-orange-100 bg-orange-50 p-3 text-xs'>
+                        <div className='mb-2 flex items-center justify-between gap-1 text-gray-500'>
+                            <div className='line-through decoration-red-400 opacity-70'>
+                                {session.date}
+                                <br />
+                                {session.time}
+                            </div>
+                            <ArrowRight size={12} className='text-orange-400' />
+                            <div className='font-bold text-green-700'>
+                                {change?.newDate || session.date}
+                                <br />
+                                {change?.newTime || session.time}
+                            </div>
+                        </div>
+                        <div className='flex gap-1 border-t border-orange-200 pt-2 italic text-gray-700'>
+                            <MessageSquare
+                                size={12}
+                                className='mt-0.5 flex-shrink-0'
+                            />
+                            <span>"{change?.reason}"</span>
+                        </div>
+                    </div>
+
+                    <div className='mt-1 flex justify-end gap-2'>
+                        <button
+                            onClick={() =>
+                                handleProcessChange(session.id, 'approve')
+                            }
+                            className='flex items-center gap-1 rounded-lg bg-green-50 px-3 py-1.5 text-xs font-bold text-green-600 hover:bg-green-100'
+                        >
+                            <Check size={14} /> Đồng ý
+                        </button>
+                        <button
+                            onClick={() =>
+                                handleProcessChange(session.id, 'reject')
+                            }
+                            className='flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200'
+                        >
+                            Giữ lịch cũ
+                        </button>
+                    </div>
+                </div>
+            );
+        });
+    };
+
+    const renderCancelTab = () => {
+        if (cancelRequests.length === 0) {
+            return (
+                <div className='rounded-lg border border-dashed py-8 text-center text-sm text-gray-400'>
+                    Không có yêu cầu hủy.
+                </div>
+            );
+        }
+        return cancelRequests.map((session) => {
+            const change = session.pendingChange; // Safe access
+            const studentInfo = storage.getUserById(session.studentId);
+            return (
+                <div
+                    key={session.id}
+                    className='animate-fade-in-up flex flex-col gap-3 border-b border-gray-100 pb-4 last:border-0 last:pb-0'
+                >
+                    <div className='flex items-center gap-3'>
+                        {renderAvatar(
+                            session.studentName,
+                            studentInfo?.avatar,
+                            studentInfo?.avatarBg,
+                        )}
+                        <div className='flex-1'>
+                            <p className='text-sm font-bold text-gray-800'>
+                                {session.studentName}
+                            </p>
+                            <div className='flex items-center gap-1 text-xs text-gray-500'>
+                                <Clock size={12} /> {session.date} |{' '}
+                                {session.time}
+                            </div>
+                        </div>
+                        <div className='rounded-full bg-red-100 p-1.5 text-red-600'>
+                            <CalendarX size={16} />
+                        </div>
+                    </div>
+
+                    <div className='rounded-lg border border-red-100 bg-red-50 p-3 text-xs text-red-800'>
+                        <p className='mb-1 flex items-center gap-1 font-bold'>
+                            <MessageSquare size={12} /> Lý do hủy:
+                        </p>
+                        <p className='italic'>"{change?.reason}"</p>
+                    </div>
+
+                    <div className='mt-1 flex justify-end gap-2'>
+                        <button
+                            onClick={() =>
+                                handleProcessChange(session.id, 'approve')
+                            }
+                            className='flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-red-100 hover:bg-red-700'
+                        >
+                            Chấp nhận
+                        </button>
+                        <button
+                            onClick={() =>
+                                handleProcessChange(session.id, 'reject')
+                            }
+                            className='flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200'
+                        >
+                            Từ chối
+                        </button>
+                    </div>
+                </div>
+            );
+        });
+    };
+
+    // --- MAIN RENDER ---
     const statCards: TutorStat[] = [
         {
             label: 'Sinh viên đang hỗ trợ',
@@ -181,17 +474,13 @@ const Overview = () => {
             textColor: 'text-yellow-600',
         },
         {
-            label: 'Yêu cầu đang chờ',
+            label: 'Yêu cầu cần xử lý',
             value: stats.pendingCount,
             icon: Bell,
             color: 'bg-red-50',
             textColor: 'text-red-600',
         },
     ];
-
-    const displayedPendingSlots = showAllPending
-        ? pendingSlots
-        : pendingSlots.slice(0, 3);
 
     return (
         <>
@@ -211,17 +500,15 @@ const Overview = () => {
                         onClick={() => setIsSessionModalOpen(true)}
                         className='flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#0795DF] to-[#00C0EF] px-5 py-2.5 font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5'
                     >
-                        <Plus size={20} />
-                        Mở buổi tư vấn mới
+                        <Plus size={20} /> Mở buổi tư vấn mới
                     </button>
                 </div>
 
-                {/* Stats Grid */}
+                {/* Stats */}
                 <div className='mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4'>
                     {statCards.map((stat, index) => (
                         <div
                             key={index}
-                            // Nếu là card Sinh viên (index 0), thêm sự kiện click để mở modal danh sách
                             onClick={
                                 index === 0
                                     ? () => setIsStudentListModalOpen(true)
@@ -239,7 +526,7 @@ const Overview = () => {
                                     {stat.value}
                                 </h3>
                                 <p className='flex items-center gap-1 text-sm text-gray-500'>
-                                    {stat.label}
+                                    {stat.label}{' '}
                                     {index === 0 && <ChevronDown size={14} />}
                                 </p>
                             </div>
@@ -247,16 +534,15 @@ const Overview = () => {
                     ))}
                 </div>
 
-                {/* Main Content Grid */}
+                {/* Main Grid */}
                 <div className='grid grid-cols-1 gap-8 lg:grid-cols-3'>
-                    {/* Left Column: Upcoming Sessions */}
+                    {/* LEFT: Upcoming Sessions */}
                     <div className='h-fit rounded-xl bg-white p-6 shadow-sm lg:col-span-2'>
                         <div className='mb-6 flex items-center justify-between'>
                             <h3 className='text-lg font-bold text-gray-800'>
                                 Lịch hẹn sắp tới
                             </h3>
                         </div>
-
                         <div className='space-y-4'>
                             {upcomingSessions.length === 0 ? (
                                 <div className='rounded-lg border border-dashed bg-gray-50 py-8 text-center text-gray-400'>
@@ -264,7 +550,6 @@ const Overview = () => {
                                 </div>
                             ) : (
                                 <>
-                                    {/* Logic hiển thị: Nếu showAllUpcoming = true thì hiện hết, ngược lại chỉ hiện 3 */}
                                     {upcomingSessions
                                         .slice(
                                             0,
@@ -307,13 +592,10 @@ const Overview = () => {
                                                     }
                                                     className='flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-[#0795DF] transition-colors hover:bg-blue-100'
                                                 >
-                                                    <Info size={14} />
-                                                    Chi tiết
+                                                    <Info size={14} /> Chi tiết
                                                 </button>
                                             </div>
                                         ))}
-
-                                    {/* Nút Xem thêm / Thu gọn */}
                                     {upcomingSessions.length > 3 && (
                                         <button
                                             onClick={() =>
@@ -344,268 +626,109 @@ const Overview = () => {
                         </div>
                     </div>
 
-                    {/* Right Column: Pending Requests */}
+                    {/* RIGHT: Requests Management */}
                     <div className='h-fit rounded-xl bg-white p-6 shadow-sm'>
-                        <div className='mb-6 flex items-center gap-2'>
+                        <div className='mb-4 flex items-center justify-between'>
                             <h3 className='text-lg font-bold text-gray-800'>
-                                Yêu cầu đặt lịch
+                                Yêu cầu xử lý ({stats.pendingCount})
                             </h3>
-                            {pendingSlots.length > 0 && (
-                                <span className='animate-pulse rounded-full bg-red-500 px-2 py-0.5 text-xs text-white'>
-                                    {pendingSlots.length}
-                                </span>
-                            )}
                         </div>
 
-                        <div className='space-y-5'>
-                            {pendingSlots.length === 0 ? (
-                                <div className='rounded-lg border border-dashed bg-gray-50 py-8 text-center text-gray-400'>
-                                    Không có yêu cầu mới.
-                                </div>
-                            ) : (
-                                <>
-                                    {displayedPendingSlots.map((slot) => {
-                                        const studentInfo = storage.getUserById(
-                                            slot.bookedByStudentId || '',
-                                        );
-                                        const hasAvatar = !!studentInfo?.avatar;
+                        {/* Tabs */}
+                        <div className='mb-5 flex rounded-lg bg-gray-100 p-1'>
+                            <button
+                                onClick={() => setActiveRequestTab('booking')}
+                                className={`flex-1 rounded-md py-1.5 text-xs font-bold transition-all ${activeRequestTab === 'booking' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Đặt lịch{' '}
+                                {pendingSlots.length > 0 &&
+                                    `(${pendingSlots.length})`}
+                            </button>
+                            <button
+                                onClick={() =>
+                                    setActiveRequestTab('reschedule')
+                                }
+                                className={`flex-1 rounded-md py-1.5 text-xs font-bold transition-all ${activeRequestTab === 'reschedule' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Đổi lịch{' '}
+                                {rescheduleRequests.length > 0 &&
+                                    `(${rescheduleRequests.length})`}
+                            </button>
+                            <button
+                                onClick={() => setActiveRequestTab('cancel')}
+                                className={`flex-1 rounded-md py-1.5 text-xs font-bold transition-all ${activeRequestTab === 'cancel' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Hủy{' '}
+                                {cancelRequests.length > 0 &&
+                                    `(${cancelRequests.length})`}
+                            </button>
+                        </div>
 
-                                        return (
-                                            <div
-                                                key={slot.id}
-                                                className='animate-fade-in-up flex flex-col gap-3 border-b border-gray-100 pb-4 last:border-0 last:pb-0'
-                                            >
-                                                <div className='flex items-center gap-3'>
-                                                    {/* AVATAR LOGIC */}
-                                                    <div
-                                                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-100 text-sm font-bold text-white ${!hasAvatar ? studentInfo?.avatarBg || 'bg-gray-400' : ''}`}
-                                                    >
-                                                        {hasAvatar ? (
-                                                            <img
-                                                                src={
-                                                                    studentInfo?.avatar
-                                                                }
-                                                                alt='Student Avatar'
-                                                                className='h-full w-full object-cover'
-                                                            />
-                                                        ) : (
-                                                            getUserInitials(
-                                                                slot.bookedByStudentName ||
-                                                                    '',
-                                                            )
-                                                        )}
-                                                    </div>
-
-                                                    <div className='flex-1 overflow-hidden'>
-                                                        <p
-                                                            className='truncate text-sm font-bold text-gray-800'
-                                                            title={
-                                                                slot.bookedByStudentName
-                                                            }
-                                                        >
-                                                            {slot.bookedByStudentName ||
-                                                                'Sinh viên'}
-                                                        </p>
-                                                        <div className='flex items-center gap-1 text-xs text-gray-500'>
-                                                            <Clock size={12} />{' '}
-                                                            {slot.date} |{' '}
-                                                            {slot.startTime}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className='rounded-lg border-l-4 border-blue-400 bg-blue-50 p-3 text-xs text-gray-700'>
-                                                    <span className='font-semibold'>
-                                                        Môn:
-                                                    </span>{' '}
-                                                    {slot.subject} <br />
-                                                    <span className='italic'>
-                                                        "
-                                                        {slot.requestNote ||
-                                                            'Mong thầy duyệt giúp em'}
-                                                        "
-                                                    </span>
-                                                </div>
-
-                                                <div className='mt-1 flex justify-end gap-2'>
-                                                    <button
-                                                        onClick={() =>
-                                                            handleApprove(slot)
-                                                        }
-                                                        className='flex items-center gap-1 rounded-lg bg-green-50 px-3 py-1.5 text-xs font-bold text-green-600 transition-colors hover:bg-green-100'
-                                                    >
-                                                        <Check size={14} />{' '}
-                                                        Duyệt
-                                                    </button>
-                                                    <button
-                                                        onClick={() =>
-                                                            handleReject(
-                                                                slot.id,
-                                                            )
-                                                        }
-                                                        className='flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition-colors hover:bg-red-100'
-                                                    >
-                                                        <X size={14} /> Từ chối
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-
-                                    {pendingSlots.length > 3 && (
-                                        <button
-                                            onClick={() =>
-                                                setShowAllPending(
-                                                    !showAllPending,
-                                                )
-                                            }
-                                            className='flex w-full items-center justify-center gap-1 rounded-lg py-2 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-50 hover:text-[#0795DF]'
-                                        >
-                                            {showAllPending ? (
-                                                <>
-                                                    Thu gọn{' '}
-                                                    <ChevronUp size={14} />
-                                                </>
-                                            ) : (
-                                                <>
-                                                    Xem thêm{' '}
-                                                    {pendingSlots.length - 3}{' '}
-                                                    yêu cầu{' '}
-                                                    <ChevronDown size={14} />
-                                                </>
-                                            )}
-                                        </button>
-                                    )}
-                                </>
-                            )}
+                        {/* Tab Content */}
+                        <div className='space-y-4'>
+                            {activeRequestTab === 'booking' &&
+                                renderBookingTab()}
+                            {activeRequestTab === 'reschedule' &&
+                                renderRescheduleTab()}
+                            {activeRequestTab === 'cancel' && renderCancelTab()}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Modal 1: Mở buổi tư vấn mới */}
+            {/* Modals */}
             <OpenSessionModal
                 isOpen={isSessionModalOpen}
                 onClose={() => setIsSessionModalOpen(false)}
                 onSuccess={fetchData}
             />
 
-            {/* Modal 2: Danh sách sinh viên đang hỗ trợ */}
+            {/* Modal Student List */}
             {isStudentListModalOpen && (
                 <div className='fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 font-bevietnam'>
-                    <div className='animate-fade-in-up flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl'>
-                        {/* Header Modal */}
-                        <div className='flex items-center justify-between border-b p-6'>
-                            <div>
-                                <h2 className='text-xl font-bold text-gray-800'>
-                                    Sinh viên đang hỗ trợ
-                                </h2>
-                                <p className='text-sm text-gray-500'>
-                                    Danh sách các sinh viên và môn tương ứng
-                                    đang được hỗ trợ.
-                                </p>
-                            </div>
+                    <div className='animate-fade-in-up w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl'>
+                        <div className='mb-4 flex items-center justify-between border-b pb-4'>
+                            <h2 className='text-lg font-bold text-gray-800'>
+                                Sinh viên đang hỗ trợ
+                            </h2>
                             <button
                                 onClick={() => setIsStudentListModalOpen(false)}
-                                className='rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100'
+                                className='rounded-full p-2 hover:bg-gray-100'
                             >
-                                <X size={24} />
+                                <X size={20} />
                             </button>
                         </div>
-
-                        {/* Body Modal - Scrollable */}
-                        <div className='overflow-y-auto p-6'>
+                        <div className='custom-scrollbar max-h-[300px] space-y-3 overflow-y-auto'>
                             {activeStudents.length === 0 ? (
-                                <div className='py-10 text-center'>
-                                    <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400'>
-                                        <Users size={32} />
-                                    </div>
-                                    <p className='text-gray-500'>
-                                        Hiện tại bạn chưa hỗ trợ sinh viên nào.
-                                    </p>
-                                    <p className='mt-1 text-sm text-gray-400'>
-                                        Kỳ dạy bắt đầu khi bạn chấp nhận yêu cầu
-                                        ghép cặp.
-                                    </p>
-                                </div>
+                                <p className='py-4 text-center text-gray-400'>
+                                    Chưa có sinh viên nào.
+                                </p>
                             ) : (
-                                <div className='space-y-4'>
-                                    {activeStudents.map((period) => {
-                                        const studentInfo = storage.getUserById(
-                                            period.studentId,
-                                        );
-                                        const hasAvatar = !!studentInfo?.avatar;
-
-                                        return (
-                                            <div
-                                                key={period.id}
-                                                className='group flex items-center gap-4 rounded-xl border border-gray-200 p-4 transition-all hover:border-blue-300 hover:bg-blue-50'
-                                            >
-                                                {/* AVATAR */}
-                                                <div
-                                                    className={`flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-100 text-lg font-bold text-white ${!hasAvatar ? studentInfo?.avatarBg || 'bg-gray-400' : ''}`}
-                                                >
-                                                    {hasAvatar ? (
-                                                        <img
-                                                            src={
-                                                                studentInfo?.avatar
-                                                            }
-                                                            alt='Student Avatar'
-                                                            className='h-full w-full object-cover'
-                                                        />
-                                                    ) : (
-                                                        getUserInitials(
-                                                            period.studentName,
-                                                        )
-                                                    )}
-                                                </div>
-
-                                                {/* Info */}
-                                                <div className='flex-1'>
-                                                    <h3 className='font-bold text-gray-800'>
-                                                        {period.studentName}
-                                                    </h3>
-                                                    <div className='mt-1 flex items-center gap-4'>
-                                                        <span className='flex items-center gap-1 text-xs text-gray-500'>
-                                                            <BookOpen
-                                                                size={12}
-                                                            />{' '}
-                                                            {period.subject}
-                                                        </span>
-                                                        <span className='flex items-center gap-1 text-xs text-gray-500'>
-                                                            <CalendarCheck
-                                                                size={12}
-                                                            />{' '}
-                                                            Bắt đầu:{' '}
-                                                            {period.startDate}
-                                                        </span>
-                                                    </div>
-                                                    {period.studentEmail && (
-                                                        <p className='mt-1 flex items-center gap-1 text-xs text-gray-400'>
-                                                            <Mail size={12} />{' '}
-                                                            {
-                                                                period.studentEmail
-                                                            }
-                                                        </p>
-                                                    )}
-                                                </div>
-
-                                                {/* Action Button */}
-                                                <button className='rounded-lg p-2 text-gray-400 transition-colors hover:bg-blue-100 hover:text-[#0795DF]'>
-                                                    <MoreHorizontal size={20} />
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                activeStudents.map((s) => (
+                                    <div
+                                        key={s.id}
+                                        className='flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3'
+                                    >
+                                        <div className='flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-600'>
+                                            {getUserInitials(s.studentName)}
+                                        </div>
+                                        <div>
+                                            <p className='text-sm font-bold text-gray-800'>
+                                                {s.studentName}
+                                            </p>
+                                            <p className='flex items-center gap-1 text-xs text-gray-500'>
+                                                <BookOpen size={10} />{' '}
+                                                {s.subject}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))
                             )}
                         </div>
-
-                        {/* Footer Modal */}
-                        <div className='flex justify-end border-t bg-gray-50 p-4'>
+                        <div className='mt-4 flex justify-end border-t pt-4'>
                             <button
                                 onClick={() => setIsStudentListModalOpen(false)}
-                                className='rounded-lg border border-gray-300 bg-white px-6 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-gray-100'
+                                className='rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200'
                             >
                                 Đóng
                             </button>
@@ -613,6 +736,7 @@ const Overview = () => {
                     </div>
                 </div>
             )}
+
             <SessionDetailModal
                 isOpen={isDetailModalOpen}
                 onClose={() => setIsDetailModalOpen(false)}

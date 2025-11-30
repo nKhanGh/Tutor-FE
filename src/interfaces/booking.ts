@@ -19,7 +19,13 @@ export interface AvailabilitySlot {
     enrolledStudentIds?: string[]; // Danh sách ID sinh viên đã đăng ký vào slot này (dành cho group)
     attachedDocumentIds?: number[];
 }
-
+export interface PendingChange {
+    type: 'cancel' | 'reschedule';
+    newDate?: string; // Chỉ dùng cho reschedule
+    newTime?: string; // Chỉ dùng cho reschedule (HH:MM - HH:MM)
+    reason: string;
+    createdAt: string;
+}
 // --- SESSION ---
 export interface Session {
     id: string;
@@ -51,6 +57,7 @@ export interface Session {
         evaluation: 'Xuất sắc' | 'Tốt' | 'Khá' | 'Cần cải thiện';
     };
     attachedDocumentIds?: number[];
+    pendingChange?: PendingChange;
 }
 
 // --- REQUESTS & REGISTRATION ---
