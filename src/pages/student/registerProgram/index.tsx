@@ -166,9 +166,7 @@ const RegisterProgram: React.FC = () => {
             setRegistrationData(newReg);
             setIsRegistered(true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
-            showSuccessNotification(
-                'Đăng ký thành công! Hồ sơ đang chờ duyệt.',
-            );
+            showSuccessNotification('Đăng ký thành công!');
         }
     };
 
@@ -403,6 +401,16 @@ const RegisterProgram: React.FC = () => {
                             <button
                                 onClick={() => {
                                     if (window.confirm('Hủy đăng ký?')) {
+                                        const periods =
+                                            storage.getTeachingActivePeriodsForStudent(
+                                                user!.id,
+                                            );
+                                        if (periods.length > 0) {
+                                            showErrorNotification(
+                                                'Không thể hủy đăng ký khi đang trong kỳ dạy với Tutor. Vui lòng liên hệ điều phối viên để được hỗ trợ.',
+                                            );
+                                            return;
+                                        }
                                         setIsRegistered(false);
                                         storage.deleteRegistrationByStudentId(
                                             user!.id,

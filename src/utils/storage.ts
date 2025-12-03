@@ -1108,6 +1108,12 @@ export const storage = {
         const reg = regs.find((r) => r.studentId === studentId);
         return reg ? reg.status : 'none';
     },
+
+    countRegistration: (): number => {
+        const regs: ProgramRegistration[] = get(KEYS.REGISTRATIONS, []);
+        return regs.length;
+    },
+
     saveRegistration: (reg: ProgramRegistration) => {
         const regs: ProgramRegistration[] = get(KEYS.REGISTRATIONS, []);
         const index = regs.findIndex((r) => r.studentId === reg.studentId);
@@ -1551,8 +1557,8 @@ export const storage = {
                     return false;
                 }
 
-                // Khóa slot lại (Status = pending)
-                slots[slotIndex].status = 'pending';
+                // Khóa slot lại (Status = rescheduled)
+                slots[slotIndex].status = 'rescheduled';
                 slots[slotIndex].bookedByStudentId = sessions[idx].studentId;
                 slots[slotIndex].bookedByStudentName =
                     sessions[idx].studentName;

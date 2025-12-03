@@ -28,7 +28,7 @@ export const mockCoordinatorStats: StatItem[] = [
     {
         key: 'student_support',
         label: 'Sinh viên hỗ trợ',
-        value: storage.countStudents(),
+        value: storage.countRegistration(),
     },
     {
         key: 'tutor_active',

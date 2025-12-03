@@ -6,7 +6,7 @@ export interface AvailabilitySlot {
     date: string;
     startTime: string;
     endTime: string;
-    status: 'available' | 'booked' | 'pending';
+    status: 'available' | 'booked' | 'pending' | 'rescheduled';
     bookedByStudentId?: string;
     bookedByStudentName?: string;
     subject?: string;

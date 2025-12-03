@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { TutorProfile, TutorRequest } from '@/interfaces';
 import { getUserInitials } from '@/utils/helpers';
 import Loading from '@/components/UI/Loading';
-import TutorDetailModal from '@/components/UI/tutor/tutorDetailModal';
+import TutorDetailModal from '@/components/UI/tutor/TutorDetailModal';
 
 const ChooseTutor: React.FC = () => {
     const { user } = useAuth();
@@ -114,36 +114,24 @@ const ChooseTutor: React.FC = () => {
                 setRequests(storage.getRequestsByStudent(user.id));
 
                 if (showAI) {
-                    const reg = storage.getRegistrationByStudentId(user.id);
-                    if (reg) {
-                        const topPicks = storage.getRecommendedTutors(user.id);
-                        console.log('Top Picks from AI:', topPicks);
-                        allTutors = allTutors
-                            .map((t) => {
-                                const foundTop = topPicks.find(
-                                    (top) => top.id === t.id,
-                                );
-                                if (foundTop) return foundTop;
-                                return {
-                                    ...t,
-                                    matchPercentage: Math.floor(
-                                        Math.random() * 50,
-                                    ),
-                                };
-                            })
-                            .sort(
-                                (a, b) =>
-                                    (b.matchPercentage || 0) -
-                                    (a.matchPercentage || 0),
+                    const topPicks = storage.getRecommendedTutors(user.id);
+                    console.log('Top Picks from AI:', topPicks);
+                    allTutors = allTutors
+                        .map((t) => {
+                            const foundTop = topPicks.find(
+                                (top) => top.id === t.id,
                             );
-                    } else {
-                        showInfoNotification(
-                            'Vui lòng hoàn thành đăng ký học tập để sử dụng tính năng gợi ý AI.',
+                            if (foundTop) return foundTop;
+                            return {
+                                ...t,
+                                matchPercentage: Math.floor(Math.random() * 50),
+                            };
+                        })
+                        .sort(
+                            (a, b) =>
+                                (b.matchPercentage || 0) -
+                                (a.matchPercentage || 0),
                         );
-                        setShowAI(false);
-                        setLoading(false);
-                        return;
-                    }
                 }
             }
 
@@ -411,7 +399,18 @@ const ChooseTutor: React.FC = () => {
                 <TutorDetailModal
                     selectedTutor={selectedTutor}
                     setSelectedTutor={setSelectedTutor}
-                    onChoose={() => setShowSubjectModal(true)}
+                    onChoose={() => {
+                        const registration = storage.getRegistrationByStudentId(
+                            user!.id,
+                        );
+                        if (!registration) {
+                            showErrorNotification(
+                                'Vui lòng hoàn thành đăng ký học tập trước khi chọn Tutor!',
+                            );
+                            return;
+                        }
+                        setShowSubjectModal(true);
+                    }}
                 />
             )}
             {showSubjectModal && selectedTutor && (

@@ -181,7 +181,7 @@ const StudentOverview = () => {
                                         {stats.upcoming}
                                     </div>
                                     <div className='text-sm text-gray-500'>
-                                        Buổi tư vấn sắp tới
+                                        Buổi học sắp tới
                                     </div>
                                 </div>
                             </div>
